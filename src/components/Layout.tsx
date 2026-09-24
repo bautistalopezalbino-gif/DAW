@@ -10,25 +10,30 @@ import { supabase } from '../lib/supabase'
 import { tagColor, TAGS_CHANGED } from '../lib/tags'
 import { useTheme } from '../lib/theme'
 import { AssistantProvider, useAssistant } from './assistant/AssistantProvider'
+import AudioBar from './audio/AudioBar'
+import { AudioProvider, useAudio } from './audio/AudioProvider'
 import { CollapsibleHeading, useCollapsed } from './Collapsible'
 import SearchDialog from './SearchDialog'
 
 export default function Layout() {
   return (
-    <AssistantProvider>
-      <Shell />
-    </AssistantProvider>
+    <AudioProvider>
+      <AssistantProvider>
+        <Shell />
+      </AssistantProvider>
+    </AudioProvider>
   )
 }
 
 function AssistantButton() {
   const { isOpen, setOpen } = useAssistant()
+  const { track } = useAudio()
   if (isOpen) return null
   return (
     <button
       onClick={() => setOpen(true)}
       title="Asistente IA (Ctrl+J)"
-      className="fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-violet-600 px-4 py-3 text-sm font-medium text-white shadow-lg shadow-violet-600/30 transition hover:scale-105"
+      className={`fixed ${track ? 'bottom-24' : 'bottom-5'} right-5 z-30 flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-violet-600 px-4 py-3 text-sm font-medium text-white shadow-lg shadow-violet-600/30 transition hover:scale-105`}
     >
       <Sparkles size={18} /> <span className="hidden sm:inline">Asistente</span>
     </button>
@@ -200,6 +205,7 @@ function Shell() {
         <main className="min-h-0 flex-1 overflow-hidden">
           <Outlet />
         </main>
+        <AudioBar />
       </div>
       {searchOpen && <SearchDialog onClose={() => setSearchOpen(false)} />}
       <AssistantButton />

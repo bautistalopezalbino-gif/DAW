@@ -51,6 +51,16 @@ body { @apply bg-white text-slate-900 antialiased dark:bg-slate-950 dark:text-sl
 .tiptap mark { @apply rounded bg-yellow-200 px-0.5 dark:bg-yellow-500/40 dark:text-inherit; }
 .tiptap a { color: var(--nb-color, #3b5bdb); }
 
+/* Bloque que se está leyendo en voz alta */
+.tiptap .is-speaking {
+  border-radius: 0.3rem;
+  background: color-mix(in srgb, #8b5cf6 13%, transparent);
+  box-shadow: 0 0 0 0.3rem color-mix(in srgb, #8b5cf6 13%, transparent);
+  transition: background 0.2s;
+}
+.tiptap tr.is-speaking td, .tiptap tr.is-speaking th { background: color-mix(in srgb, #8b5cf6 13%, transparent); }
+.tiptap tr.is-speaking { box-shadow: none; }
+
 /* Bloques de código */
 .code-block { @apply my-4 overflow-hidden rounded-lg border border-slate-800 bg-slate-900 text-slate-100; }
 .code-block-bar { @apply flex items-center justify-between gap-2 border-b border-slate-800 bg-slate-950/60 px-3 py-1.5 text-xs; }

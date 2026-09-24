@@ -1,7 +1,8 @@
-import { ArrowDown, ArrowUp, ChevronRight, FileDown, FileQuestion, FileText, Layers, ListTree, Pencil, Pin, Plus, Printer, Sparkles, Trash2, Users } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronRight, FileDown, Headphones, FileQuestion, FileText, Layers, ListTree, Pencil, Pin, Plus, Printer, Sparkles, Trash2, Users } from 'lucide-react'
 import { useEffect, useState, type CSSProperties } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useAssistant } from '../components/assistant/AssistantProvider'
+import { useAudioActions } from '../components/audio/AudioProvider'
 import ErrorBanner from '../components/ErrorBanner'
 import SaveAsDialog from '../components/SaveAsDialog'
 import NewNoteMenu from '../components/NewNoteMenu'
@@ -14,6 +15,7 @@ import {
   createNote, createSection, deleteSection, listNotes, listSections, moveSection, notebookBase, renameSection,
   type NoteSummary, type Role, type Section,
 } from '../lib/api'
+import { sectionSegments, summarySegments } from '../lib/audioSources'
 import { useAuth } from '../lib/auth'
 import { docToText } from '../lib/docExport'
 import { timeAgo } from '../lib/format'
@@ -42,6 +44,7 @@ export default function NotebookPage() {
 
   const fail = (e: Error) => setError(e.message)
   const assistant = useAssistant()
+  const audio = useAudioActions()
 
   // Rol en el cuaderno: propio o compartido conmigo
   useEffect(() => {
@@ -162,6 +165,16 @@ export default function NotebookPage() {
     }
   }
 
+  function listen(s: Section, summary: boolean) {
+    const nb = notebook!
+    if (!summary) return audio.playAsync(s.title, nb.name, () => sectionSegments(s.id, s.title, nb.slug))
+    audio.playAsync(`Resumen: ${s.title}`, nb.name, async () => {
+      const src = await sectionSource(s.id)
+      if (!src.text.trim()) throw new Error('Este tema no tiene apuntes con texto todavía.')
+      return summarySegments(`Tema: ${src.title}\n\n${src.text}`, nb.slug)
+    })
+  }
+
   async function addNote(template: Template | null) {
     if (!sectionId) return
     try {
@@ -270,6 +283,19 @@ export default function NotebookPage() {
                       <IconBtn title="Guardar este tema como…" onClick={() => setExporting([s.id])}>
                         <FileDown size={13} />
                       </IconBtn>
+                      <Menu
+                        title="Escuchar el tema"
+                        align="right"
+                        className="rounded p-1 hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                        label={<Headphones size={13} />}
+                      >
+                        {(close) => (
+                          <>
+                            <MenuItem icon={<Headphones size={15} />} hint="Todos los apuntes del tema, uno tras otro" onClick={() => (close(), listen(s, false))}>Escuchar el tema</MenuItem>
+                            <MenuItem icon={<ListTree size={15} />} hint="La IA prepara un resumen hablado" onClick={() => (close(), listen(s, true))}>Resumen del tema en audio</MenuItem>
+                          </>
+                        )}
+                      </Menu>
                       <Menu
                         title="IA y exportar"
                         align="right"

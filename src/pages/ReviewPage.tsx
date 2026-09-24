@@ -1,12 +1,14 @@
-import { Layers, Pencil, Plus, RotateCcw, Sparkles, Trash2 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Layers, Pencil, Plus, RotateCcw, Sparkles, Trash2, Volume2 } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAssistant } from '../components/assistant/AssistantProvider'
+import { useAudioActions } from '../components/audio/AudioProvider'
 import CardDialog from '../components/CardDialog'
 import ErrorBanner from '../components/ErrorBanner'
 import { btnPrimary } from '../components/ui'
 import { getNotebook, NOTEBOOKS, type NotebookSlug } from '../data/notebooks'
 import { deleteCard, listCards, reviewCard, type Flashcard, type Grade } from '../lib/cards'
 import { timeAgo } from '../lib/format'
+import { defaultLang } from '../lib/speech'
 
 type Tab = 'estudiar' | 'tarjetas'
 
@@ -22,6 +24,14 @@ export default function ReviewPage() {
   const [editing, setEditing] = useState<Flashcard | 'new' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const assistant = useAssistant()
+  const audio = useAudioActions()
+  const [autoRead, setAutoRead] = useState(() => {
+    try {
+      return localStorage.getItem('repaso-leer') === '1'
+    } catch {
+      return false
+    }
+  })
 
   const load = useCallback(() => {
     listCards()
@@ -47,6 +57,20 @@ export default function ReviewPage() {
   useEffect(startSession, [cards === null, filter])
 
   const current = queue[0]
+
+  // «Leer en voz alta»: la pregunta al aparecer y la respuesta al mostrarla
+  const readRef = useRef({ autoRead, current, audio })
+  readRef.current = { autoRead, current, audio }
+  const read = useCallback((side: 'front' | 'back') => {
+    const { autoRead: on, current: c, audio: a } = readRef.current
+    if (on && c?.[side]) a.speak(c[side], defaultLang(c.notebook), 'Tarjeta')
+  }, [])
+  useEffect(() => {
+    if (tab === 'estudiar') read('front')
+  }, [tab, current?.id, reviewed, read])
+  useEffect(() => {
+    if (revealed) read('back')
+  }, [revealed, read])
 
   async function grade(g: Grade) {
     if (!current) return
@@ -130,18 +154,38 @@ export default function ReviewPage() {
           <div className="mt-6">
             {current ? (
               <>
-                <p className="mb-2 text-xs text-slate-500">
-                  Quedan {queue.length} · repasadas {reviewed}
-                </p>
+                <div className="mb-2 flex items-center justify-between gap-2 text-xs text-slate-500">
+                  <span>Quedan {queue.length} · repasadas {reviewed}</span>
+                  <label className="flex cursor-pointer items-center gap-1.5" title="Lee la pregunta al aparecer y la respuesta al mostrarla">
+                    <input
+                      type="checkbox"
+                      checked={autoRead}
+                      onChange={(e) => {
+                        setAutoRead(e.target.checked)
+                        try {
+                          localStorage.setItem('repaso-leer', e.target.checked ? '1' : '0')
+                        } catch {
+                          /* sin almacenamiento */
+                        }
+                      }}
+                      className="accent-violet-600"
+                    />
+                    <Volume2 size={13} /> Leer en voz alta
+                  </label>
+                </div>
                 <div
                   className="rounded-xl border border-slate-200 border-t-4 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
                   style={{ borderTopColor: nb?.color }}
                 >
                   <p className="text-xs font-semibold" style={{ color: nb?.color }}>{nb?.name}</p>
-                  <p className="mt-3 whitespace-pre-wrap text-xl font-medium">{current.front}</p>
+                  <div className="mt-3 flex items-start gap-2">
+                    <p className="flex-1 whitespace-pre-wrap text-xl font-medium">{current.front}</p>
+                    <SpeakBtn onClick={() => audio.speak(current.front, defaultLang(current.notebook), 'Tarjeta')} />
+                  </div>
                   {revealed ? (
-                    <div className="mt-6 border-t border-dashed border-slate-200 pt-5 dark:border-slate-700">
-                      <p className="whitespace-pre-wrap text-slate-700 dark:text-slate-300">{current.back || <i className="text-slate-400">(sin respuesta)</i>}</p>
+                    <div className="mt-6 flex items-start gap-2 border-t border-dashed border-slate-200 pt-5 dark:border-slate-700">
+                      <p className="flex-1 whitespace-pre-wrap text-slate-700 dark:text-slate-300">{current.back || <i className="text-slate-400">(sin respuesta)</i>}</p>
+                      {current.back && <SpeakBtn onClick={() => audio.speak(current.back, defaultLang(current.notebook), 'Tarjeta')} />}
                     </div>
                   ) : (
                     <button onClick={() => setRevealed(true)} className="mt-6 w-full rounded-lg border border-dashed border-slate-300 py-3 text-sm text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800">
@@ -230,6 +274,14 @@ function FilterChip({ active, onClick, label, count, color }: { active: boolean;
       {color && <span className="h-2 w-2 rounded-full" style={{ background: color }} />}
       {label}
       {count > 0 && <span className="rounded-full bg-red-500 px-1.5 text-[10px] text-white">{count}</span>}
+    </button>
+  )
+}
+
+function SpeakBtn({ onClick }: { onClick: () => void }) {
+  return (
+    <button onClick={onClick} title="Escuchar" aria-label="Escuchar" className="shrink-0 rounded-full p-2 text-slate-400 hover:bg-violet-50 hover:text-violet-600 dark:hover:bg-violet-950">
+      <Volume2 size={18} />
     </button>
   )
 }

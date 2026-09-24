@@ -8,6 +8,7 @@ import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { TableKit } from '@tiptap/extension-table'
 import { Placeholder } from '@tiptap/extensions'
 import { NodeSelection, Plugin, PluginKey } from '@tiptap/pm/state'
+import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { ReactNodeViewRenderer } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import dos from 'highlight.js/lib/languages/dos'
@@ -284,6 +285,34 @@ export const contentExtensions: AnyExtension[] = [
   Drawing,
 ]
 
+/** Resalta el bloque que se está leyendo en voz alta (se cambia con `setMeta(speechKey, rango)`). */
+export const speechKey = new PluginKey<DecorationSet>('speech')
+
+const SpeechHighlight = Extension.create({
+  name: 'speechHighlight',
+  addProseMirrorPlugins() {
+    return [
+      new Plugin<DecorationSet>({
+        key: speechKey,
+        state: {
+          init: () => DecorationSet.empty,
+          apply(tr, set) {
+            const range = tr.getMeta(speechKey) as { from: number; to: number } | null | undefined
+            if (range === undefined) return set.map(tr.mapping, tr.doc)
+            const node = range && tr.doc.nodeAt(range.from)
+            // Si el apunte ha cambiado y la posición ya no cuadra, no se resalta nada
+            if (!range || !node || range.from + node.nodeSize !== range.to) return DecorationSet.empty
+            return DecorationSet.create(tr.doc, [Decoration.node(range.from, range.to, { class: 'is-speaking' })])
+          },
+        },
+        props: {
+          decorations: (state) => speechKey.getState(state),
+        },
+      }),
+    ]
+  },
+})
+
 interface CollabOptions {
   doc: Y.Doc
   provider: { awareness: unknown }
@@ -297,6 +326,7 @@ export function createEditorExtensions(onFiles: FilesHandler, collab: CollabOpti
     Placeholder.configure({ placeholder: 'Empieza a escribir tus apuntes… (escribe ``` para un bloque de código)' }),
     FileDrop.configure({ onFiles }),
     BlockInsert,
+    SpeechHighlight,
     Collaboration.configure({ document: collab.doc, field: collab.field }),
     CollaborationCaret.configure({ provider: collab.provider, user: collab.user }),
   ]

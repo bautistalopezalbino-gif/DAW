@@ -18,6 +18,7 @@ import { createEditorExtensions } from '../lib/editorExtensions'
 import { removeNoteFiles, uploadFile, type NoteLocation } from '../lib/storage'
 import { TAGS_CHANGED } from '../lib/tags'
 import AiMenu from './assistant/AiMenu'
+import { ListenMenu, SpeakBubble, SpeechFollower } from './audio/NoteAudio'
 import { useAssistant } from './assistant/AssistantProvider'
 import CardDialog from './CardDialog'
 import SaveAsDialog from './SaveAsDialog'
@@ -340,6 +341,7 @@ function EditorInner({
         <span className="ml-auto" />
         <Presence awareness={provider.awareness} />
         {editor && <AiMenu editor={editor} noteId={note.id} title={title} notebook={notebook} canWrite={canWrite} />}
+        {editor && <ListenMenu editor={editor} noteId={note.id} title={title} notebook={notebook} />}
         {uploading > 0 && <span className="shrink-0 text-xs text-slate-500">Subiendo {uploading}…</span>}
         {canWrite && (
           <span className={`hidden shrink-0 text-xs sm:inline ${status === 'error' ? 'text-red-600' : 'text-slate-400'}`}>
@@ -413,6 +415,8 @@ function EditorInner({
           />
           <TagBar tags={tags} onChange={changeTags} readOnly={!canWrite} />
           <EditorContent editor={editor} />
+          {editor && <SpeakBubble editor={editor} notebook={notebook} />}
+          {editor && <SpeechFollower editor={editor} noteId={note.id} />}
           {editor?.isEmpty && !canWrite && (
             <p className="flex items-center gap-2 text-sm text-slate-400"><FileText size={15} /> Apunte vacío</p>
           )}

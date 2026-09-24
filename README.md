@@ -22,6 +22,10 @@ El plan completo está en [`docs/plan-plataforma-daw.pdf`](docs/plan-plataforma-
 - **Calendario** de exámenes y entregas, con los próximos en la página de inicio.
 - **Exportar**: apunte a Markdown, apunte o tema a PDF (imprimir), cuaderno entero a Markdown y
   copia de seguridad JSON (importable).
+- **Escuchar en voz alta**: un apunte, un tema entero o un resumen hablado hecho por la IA, con
+  reproductor (pausa, saltar, velocidad, voces) que sigue sonando al cambiar de página y resalta lo que
+  lee. Detecta español e inglés frase a frase (tablas y listas de vocabulario incluidas), lee la
+  selección para oír la pronunciación y puede leer las tarjetas de repaso. Usa las voces del navegador.
 - **Asistente IA (Gemini)** en toda la web (`Ctrl+J`): dudas, explicaciones, resúmenes, mejorar o
   traducir texto, ejercicios, tarjetas y tests generados desde tus apuntes, planes de estudio y
   preguntas que buscan en todos tus apuntes. Las respuestas se pueden insertar en el apunte.

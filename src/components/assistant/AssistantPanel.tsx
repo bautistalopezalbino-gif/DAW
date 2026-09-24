@@ -1,10 +1,12 @@
 import hljs from 'highlight.js/lib/common'
 import {
-  ArrowUp, Check, Copy, FileText, ListPlus, Replace, RotateCcw, Search, Sparkles, Square, TextCursorInput, X,
+  ArrowUp, Check, Copy, FileText, ListPlus, Replace, RotateCcw, Search, Sparkles, Square, TextCursorInput, Volume2, X,
 } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { markdownToHtml } from '../../lib/markdown'
+import { defaultLang, textSegments } from '../../lib/speech'
+import { useAudioActions } from '../audio/AudioProvider'
 import { useAssistant, type Turn } from './AssistantProvider'
 
 const GENERAL_SUGGESTIONS = [
@@ -184,6 +186,7 @@ function UserBubble({ turn }: { turn: Turn }) {
 
 function Answer({ turn }: { turn: Turn }) {
   const a = useAssistant()
+  const audio = useAudioActions()
   const ref = useRef<HTMLDivElement>(null)
   const [copied, setCopied] = useState(false)
 
@@ -238,6 +241,12 @@ function Answer({ turn }: { turn: Turn }) {
         {!turn.pending && turn.text && (
           <div className="mt-2 flex flex-wrap gap-1">
             <Action onClick={copy} icon={copied ? <Check size={13} /> : <Copy size={13} />}>{copied ? 'Copiado' : 'Copiar'}</Action>
+            <Action
+              onClick={() => audio.play({ title: 'Respuesta del asistente', segments: textSegments(turn.text, defaultLang(a.note?.notebook.slug)) })}
+              icon={<Volume2 size={13} />}
+            >
+              Escuchar
+            </Action>
             {canInsert && turn.range && (
               <>
                 <Action onClick={() => a.insertAnswer(turn.text, 'replace', turn.range)} icon={<Replace size={13} />}>Reemplazar selección</Action>
