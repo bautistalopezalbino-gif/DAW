@@ -2,7 +2,7 @@ import { isChangeOrigin } from '@tiptap/extension-collaboration'
 import { EditorContent, useEditor } from '@tiptap/react'
 import { yXmlFragmentToProsemirrorJSON } from '@tiptap/y-tiptap'
 import {
-  ArrowLeft, Eye, FileDown, FileText, Layers, MoreHorizontal, Pin, PinOff, Printer, Trash2, Wifi,
+  ArrowLeft, Eye, FileDown, FileText, Layers, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Pin, PinOff, Printer, Trash2, Wifi,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Y from 'yjs'
@@ -15,6 +15,7 @@ import { createNoteDoc, DB_ORIGIN, FIELD, fromBase64, SupabaseProvider, toBase64
 import { docToMarkdown, docToText, resolveUrls } from '../lib/docExport'
 import { downloadFile, slugify } from '../lib/download'
 import { createEditorExtensions } from '../lib/editorExtensions'
+import { usePanelsHidden } from '../lib/focusMode'
 import { removeNoteFiles, uploadFile, type NoteLocation } from '../lib/storage'
 import { TAGS_CHANGED } from '../lib/tags'
 import AiMenu from './assistant/AiMenu'
@@ -98,6 +99,7 @@ function EditorInner({
   const [uploading, setUploading] = useState(0)
   const [cardText, setCardText] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [panelsHidden, setPanelsHidden] = usePanelsHidden()
   const pending = useRef<Pending>({})
   const timer = useRef<number | undefined>(undefined)
   const chain = useRef<Promise<void>>(Promise.resolve())
@@ -329,6 +331,14 @@ function EditorInner({
         <button onClick={onBack} className="rounded p-1 hover:bg-slate-100 md:hidden dark:hover:bg-slate-800" aria-label="Volver">
           <ArrowLeft size={18} />
         </button>
+        <button
+          onClick={() => setPanelsHidden(!panelsHidden)}
+          title={panelsHidden ? 'Mostrar los paneles laterales' : 'Ocultar los paneles laterales (más ancho para el apunte)'}
+          aria-label={panelsHidden ? 'Mostrar los paneles laterales' : 'Ocultar los paneles laterales'}
+          className="hidden rounded p-1 text-slate-500 hover:bg-slate-100 md:block dark:hover:bg-slate-800"
+        >
+          {panelsHidden ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+        </button>
         <span className="min-w-0 truncate text-slate-500">
           <span className="font-medium" style={{ color: notebook.color }}>{notebook.code}</span>
           {sectionTitle && <> · {sectionTitle}</>}
@@ -393,7 +403,7 @@ function EditorInner({
 
       {editor && canWrite && <Toolbar editor={editor} onPickFiles={(files) => void handleFiles(files, null)} />}
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div data-editor-scroll="" className="@container min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
         <div className="mx-auto max-w-3xl px-5 py-8 sm:px-10">
           <input
             ref={titleRef}

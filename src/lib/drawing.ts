@@ -5,7 +5,22 @@ export interface Stroke {
   opacity?: number
 }
 
-export const CANVAS_WIDTH = 800
+/** Texto escrito dentro del dibujo (x, y = esquina superior izquierda). */
+export interface DrawingText {
+  id: string
+  x: number
+  y: number
+  text: string
+  color: string
+  size: number
+}
+
+export const CANVAS_WIDTH = 800 // ancho por defecto (los dibujos antiguos no guardan su ancho)
+export const TEXT_SIZES = [18, 26, 40]
+export const LINE_HEIGHT = 1.25
+export const DRAW_FONT = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
+/** Línea base de cada línea de texto respecto a su esquina superior. */
+export const baseline = (t: DrawingText, line: number) => t.y + t.size * (1.05 + line * LINE_HEIGHT)
 
 // Trazo suavizado con curvas cuadráticas entre puntos medios
 export function strokePath(points: number[]): string {
@@ -45,8 +60,10 @@ export function hitsStroke(s: Stroke, px: number, py: number, radius: number): b
   return false
 }
 
+const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
 /** SVG autónomo (para Markdown/HTML exportado). */
-export function drawingSvg(strokes: Stroke[], height: number): string {
+export function drawingSvg(strokes: Stroke[], height: number, width = CANVAS_WIDTH, texts: DrawingText[] = []): string {
   const paths = strokes
     .map(
       (s) =>
@@ -54,5 +71,16 @@ export function drawingSvg(strokes: Stroke[], height: number): string {
         `stroke-opacity="${s.opacity ?? 1}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
     )
     .join('')
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${CANVAS_WIDTH} ${height}" width="100%">${paths}</svg>`
+  const words = texts
+    .map(
+      (t) =>
+        `<text fill="${t.color === 'ink' ? '#111' : t.color}" font-size="${t.size}" font-family='${DRAW_FONT}' xml:space="preserve">` +
+        t.text
+          .split('\n')
+          .map((line, i) => `<tspan x="${t.x}" y="${baseline(t, i)}">${esc(line)}</tspan>`)
+          .join('') +
+        '</text>',
+    )
+    .join('')
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="100%">${paths}${words}</svg>`
 }

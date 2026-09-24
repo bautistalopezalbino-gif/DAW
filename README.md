@@ -13,7 +13,9 @@ El plan completo está en [`docs/plan-plataforma-daw.pdf`](docs/plan-plataforma-
 - **Editor** con títulos, listas, tareas, tablas, enlaces y **bloques de código con resaltado**
   (Java, SQL, HTML/XML, CSS, Bash, PowerShell…). Atajos Markdown: `#`, `-`, `[ ]`, ```` ```java ````.
 - **Imágenes y archivos**: pega capturas con Ctrl+V, arrástralas o súbelas; adjunta PDF (con vista previa).
-- **Dibujo a mano** (ratón, lápiz o dedo) para esquemas, diagramas E/R o UML.
+- **Dibujo a mano** (ratón, lápiz o dedo) para esquemas, diagramas E/R o UML, con **texto** dentro del
+  dibujo (se puede mover y editar) y tamaño ajustable a lo **ancho** y a lo alto (hasta ocupar toda la
+  pantalla ocultando los paneles laterales).
 - **Plantillas** por cuaderno: ejercicio resuelto, consulta SQL, modelo E/R, vocabulario, diario del proyecto…
 - **Etiquetas** (#examen, #duda…) con filtro por etiqueta.
 - **Compartir cuadernos por email** (editor o lector) y **edición en tiempo real**: varias personas

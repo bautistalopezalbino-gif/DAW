@@ -19,7 +19,7 @@ import CodeBlockView from '../components/CodeBlockView'
 import DrawingView from '../components/nodes/DrawingView'
 import FileView from '../components/nodes/FileView'
 import ImageView from '../components/nodes/ImageView'
-import { CANVAS_WIDTH, strokeColor, strokePath, type Stroke } from './drawing'
+import { baseline, CANVAS_WIDTH, DRAW_FONT, strokeColor, strokePath, type DrawingText, type Stroke } from './drawing'
 import { formatSize } from './storage'
 
 const lowlight = createLowlight(common)
@@ -145,6 +145,22 @@ export const Drawing = Node.create({
         parseHTML: (el) => Number(el.getAttribute('data-height') ?? 360),
         renderHTML: (attrs) => ({ 'data-height': attrs.height }),
       },
+      width: {
+        default: CANVAS_WIDTH,
+        parseHTML: (el) => Number(el.getAttribute('data-width') ?? CANVAS_WIDTH),
+        renderHTML: (attrs) => ({ 'data-width': attrs.width }),
+      },
+      texts: {
+        default: [],
+        parseHTML: (el) => {
+          try {
+            return JSON.parse(el.getAttribute('data-texts') ?? '[]')
+          } catch {
+            return []
+          }
+        },
+        renderHTML: (attrs) => ({ 'data-texts': JSON.stringify(attrs.texts ?? []) }),
+      },
     }
   },
 
@@ -155,12 +171,13 @@ export const Drawing = Node.create({
   renderHTML({ node, HTMLAttributes }) {
     const svg = 'http://www.w3.org/2000/svg'
     const strokes = node.attrs.strokes as Stroke[]
+    const texts = (node.attrs.texts ?? []) as DrawingText[]
     return [
       'div',
       mergeAttributes(HTMLAttributes, { 'data-drawing': '', class: 'drawing' }),
       [
         `${svg} svg`,
-        { viewBox: `0 0 ${CANVAS_WIDTH} ${node.attrs.height}`, width: '100%', style: 'color:#111' },
+        { viewBox: `0 0 ${node.attrs.width ?? CANVAS_WIDTH} ${node.attrs.height}`, width: '100%', style: 'color:#111' },
         ...strokes.map((s) => [
           `${svg} path`,
           {
@@ -172,6 +189,11 @@ export const Drawing = Node.create({
             'stroke-linecap': 'round',
             'stroke-linejoin': 'round',
           },
+        ]),
+        ...texts.map((t) => [
+          `${svg} text`,
+          { fill: strokeColor(t.color), 'font-size': String(t.size), 'font-family': DRAW_FONT, 'xml:space': 'preserve' },
+          ...t.text.split('\n').map((line, i) => [`${svg} tspan`, { x: String(t.x), y: String(baseline(t, i)) }, line]),
         ]),
       ],
     ]

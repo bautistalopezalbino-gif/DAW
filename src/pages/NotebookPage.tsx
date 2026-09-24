@@ -17,6 +17,7 @@ import {
 } from '../lib/api'
 import { sectionSegments, summarySegments } from '../lib/audioSources'
 import { useAuth } from '../lib/auth'
+import { usePanelsHidden } from '../lib/focusMode'
 import { docToText } from '../lib/docExport'
 import { timeAgo } from '../lib/format'
 import { sharedWithMe } from '../lib/shares'
@@ -45,6 +46,7 @@ export default function NotebookPage() {
   const fail = (e: Error) => setError(e.message)
   const assistant = useAssistant()
   const audio = useAudioActions()
+  const [panelsHidden] = usePanelsHidden()
 
   // Rol en el cuaderno: propio o compartido conmigo
   useEffect(() => {
@@ -204,7 +206,7 @@ export default function NotebookPage() {
     <div className="flex h-full" style={{ '--nb-color': notebook.color } as CSSProperties}>
       {/* Panel de temas y apuntes */}
       <div
-        className={`${noteId ? 'hidden md:flex' : 'flex'} w-full shrink-0 flex-col border-r border-slate-200 md:w-72 dark:border-slate-800`}
+        className={`${noteId ? (panelsHidden ? 'hidden' : 'hidden md:flex') : 'flex'} w-full shrink-0 flex-col border-r border-slate-200 md:w-72 dark:border-slate-800`}
       >
         <div className="border-b border-slate-200 px-4 py-4 dark:border-slate-800" style={{ borderTop: `4px solid ${notebook.color}` }}>
           <div className="flex items-start gap-2">

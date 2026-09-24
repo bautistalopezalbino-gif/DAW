@@ -1,10 +1,11 @@
-import { CalendarDays, Home, Layers, LogOut, Menu, Moon, Search, Settings, Sparkles, Sun, Users, X } from 'lucide-react'
+import { CalendarDays, Home, Layers, LogOut, Menu, Moon, PanelLeftOpen, Search, Settings, Sparkles, Sun, Users, X } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { getNotebook, NOTEBOOKS } from '../data/notebooks'
 import { userTags } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { countDue } from '../lib/cards'
+import { usePanelsHidden } from '../lib/focusMode'
 import { SHARES_CHANGED, sharedWithMe, type Share } from '../lib/shares'
 import { supabase } from '../lib/supabase'
 import { tagColor, TAGS_CHANGED } from '../lib/tags'
@@ -53,6 +54,7 @@ function Shell() {
   const assistant = useAssistant()
   const [mineCollapsed, toggleMine] = useCollapsed('lateral-mis-cuadernos')
   const [sharedCollapsed, toggleShared] = useCollapsed('lateral-compartidos')
+  const [panelsHidden, setPanelsHidden] = usePanelsHidden()
 
   useEffect(() => setMenuOpen(false), [location.pathname])
 
@@ -185,7 +187,22 @@ function Shell() {
   return (
     // En pantallas grandes el asistente no tapa el contenido: la página se estrecha a su lado
     <div className={`flex h-full transition-[padding] ${assistant.isOpen ? 'lg:pr-[440px]' : ''}`}>
-      <div className="hidden md:block">{sidebar}</div>
+      {panelsHidden ? (
+        // Paneles ocultos: queda una tira estrecha para volver a mostrarlos
+        <div className="hidden w-11 shrink-0 flex-col items-center gap-1 border-r border-slate-200 bg-slate-50 py-3 md:flex dark:border-slate-800 dark:bg-slate-900">
+          <button onClick={() => setPanelsHidden(false)} title="Mostrar los paneles laterales" aria-label="Mostrar los paneles laterales" className="rounded-md p-2 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800">
+            <PanelLeftOpen size={18} />
+          </button>
+          <Link to="/" title="Inicio" aria-label="Inicio" className="rounded-md p-2 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800">
+            <Home size={18} />
+          </Link>
+          <button onClick={() => setSearchOpen(true)} title="Buscar (Ctrl+K)" aria-label="Buscar" className="rounded-md p-2 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800">
+            <Search size={18} />
+          </button>
+        </div>
+      ) : (
+        <div className="hidden md:block">{sidebar}</div>
+      )}
       {menuOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setMenuOpen(false)} />

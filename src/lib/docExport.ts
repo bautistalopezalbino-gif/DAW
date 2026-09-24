@@ -1,5 +1,5 @@
 import type { JSONContent } from '@tiptap/react'
-import { drawingSvg, type Stroke } from './drawing'
+import { drawingSvg, type DrawingText, type Stroke } from './drawing'
 import { signedUrl } from './storage'
 
 /** Texto plano de un documento (para la búsqueda). */
@@ -123,7 +123,7 @@ function block(n: JSONContent, urls: Map<string, string>): string {
     case 'fileAttachment':
       return `[📎 ${n.attrs?.name ?? 'archivo'}](${urls.get(n.attrs?.path) ?? ''})`
     case 'drawing':
-      return drawingSvg((n.attrs?.strokes ?? []) as Stroke[], n.attrs?.height ?? 360)
+      return drawingSvg((n.attrs?.strokes ?? []) as Stroke[], n.attrs?.height ?? 360, n.attrs?.width ?? undefined, (n.attrs?.texts ?? []) as DrawingText[])
     default:
       return blocks(items, urls)
   }
