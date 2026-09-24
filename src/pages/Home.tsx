@@ -1,6 +1,7 @@
-import { CalendarDays, Layers, Pin, Users } from 'lucide-react'
+import { CalendarDays, Layers, Pin, Sparkles, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useAssistant } from '../components/assistant/AssistantProvider'
 import ErrorBanner from '../components/ErrorBanner'
 import NoteCards from '../components/NoteCards'
 import { getNotebook, NOTEBOOKS } from '../data/notebooks'
@@ -18,6 +19,7 @@ export default function Home() {
   const [due, setDue] = useState(0)
   const [shared, setShared] = useState<Share[]>([])
   const [error, setError] = useState<string | null>(null)
+  const assistant = useAssistant()
 
   useEffect(() => {
     const fail = (e: Error) => setError(e.message)
@@ -55,7 +57,22 @@ export default function Home() {
           ))}
         </div>
 
-        <div className="mt-8 grid gap-4 md:grid-cols-2">
+        <button
+          onClick={() => assistant.setOpen(true)}
+          className="mt-8 flex w-full items-center gap-4 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 p-4 text-left text-white shadow-sm transition hover:shadow-lg"
+        >
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-white/20">
+            <Sparkles size={22} />
+          </span>
+          <span className="min-w-0">
+            <span className="block font-semibold">Asistente IA</span>
+            <span className="block text-sm opacity-90">
+              Resuelve dudas, explica código, crea tarjetas y tests desde tus apuntes. Ábrelo desde cualquier página con Ctrl+J.
+            </span>
+          </span>
+        </button>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
           <Link to="/calendario" className="rounded-xl border border-slate-200 p-4 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900">
             <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500">
               <CalendarDays size={15} /> Próximos exámenes y entregas

@@ -22,6 +22,9 @@ El plan completo está en [`docs/plan-plataforma-daw.pdf`](docs/plan-plataforma-
 - **Calendario** de exámenes y entregas, con los próximos en la página de inicio.
 - **Exportar**: apunte a Markdown, apunte o tema a PDF (imprimir), cuaderno entero a Markdown y
   copia de seguridad JSON (importable).
+- **Asistente IA (Gemini)** en toda la web (`Ctrl+J`): dudas, explicaciones, resúmenes, mejorar o
+  traducir texto, ejercicios, tarjetas y tests generados desde tus apuntes, planes de estudio y
+  preguntas que buscan en todos tus apuntes. Las respuestas se pueden insertar en el apunte.
 - Guardado automático, buscador global (`Ctrl+K`), modo oscuro y versión móvil.
 
 ## Tecnologías
@@ -45,6 +48,11 @@ personas invitadas; los lectores no pueden modificar nada, tampoco archivos ni c
    npm run dev
    ```
    Abre http://localhost:5173.
+
+3. **Asistente IA:** en Vercel → *Settings → Environment Variables*, crea `GEMINI_API_KEY` con tu clave
+   de Google AI Studio y vuelve a desplegar. La clave solo la usa la función de servidor `api/ai.ts`
+   (nunca llega al navegador), que exige sesión iniciada y limita el uso por persona. Opcional:
+   `GEMINI_MODEL` para cambiar el modelo principal.
 
 La URL y la *anon key* de Supabase están en `src/lib/supabase.ts` (son públicas; la seguridad
 la dan las políticas RLS). Para usar otro proyecto, copia `.env.example` a `.env.local`.

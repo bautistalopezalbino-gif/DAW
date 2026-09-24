@@ -1,9 +1,10 @@
-import { Search } from 'lucide-react'
+import { Search, Sparkles } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getNotebook } from '../data/notebooks'
 import { noteUrl, searchNotes, type NoteWithPlace } from '../lib/api'
 import { useAuth } from '../lib/auth'
+import { useAssistant } from './assistant/AssistantProvider'
 
 export default function SearchDialog({ onClose }: { onClose: () => void }) {
   const [query, setQuery] = useState('')
@@ -13,6 +14,7 @@ export default function SearchDialog({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
   const { session } = useAuth()
+  const assistant = useAssistant()
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => inputRef.current?.focus(), [])
@@ -48,6 +50,11 @@ export default function SearchDialog({ onClose }: { onClose: () => void }) {
     onClose()
   }
 
+  function askAI() {
+    assistant.ask(query, { searchNotes: true, useNote: false })
+    onClose()
+  }
+
   function onKey(e: React.KeyboardEvent) {
     if (e.key === 'Escape') onClose()
     else if (e.key === 'ArrowDown') {
@@ -57,6 +64,7 @@ export default function SearchDialog({ onClose }: { onClose: () => void }) {
       e.preventDefault()
       setActive((a) => Math.max(a - 1, 0))
     } else if (e.key === 'Enter' && results[active]) open(results[active])
+    else if (e.key === 'Enter' && query.trim()) askAI()
   }
 
   return (
@@ -81,6 +89,14 @@ export default function SearchDialog({ onClose }: { onClose: () => void }) {
           {error && <p className="p-4 text-sm text-red-600">{error}</p>}
           {!error && query.trim().length >= 2 && !loading && results.length === 0 && (
             <p className="p-4 text-sm text-slate-500">Sin resultados para «{query}».</p>
+          )}
+          {query.trim().length >= 2 && (
+            <button onClick={askAI} className="flex w-full items-center gap-2 border-b border-slate-100 px-4 py-3 text-left text-sm hover:bg-violet-50 dark:border-slate-800 dark:hover:bg-violet-950">
+              <Sparkles size={16} className="text-violet-600" />
+              <span>
+                Preguntar a la IA: <b>«{query}»</b> <span className="text-slate-500">(buscando en tus apuntes)</span>
+              </span>
+            </button>
           )}
           {results.map((n, i) => {
             const nb = getNotebook(n.sections?.notebook)

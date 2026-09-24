@@ -1,11 +1,12 @@
-import { ArrowDown, ArrowUp, ChevronRight, FileText, Pencil, Pin, Plus, Trash2, Users } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronRight, FileQuestion, FileText, Layers, ListTree, Pencil, Pin, Plus, Printer, Sparkles, Trash2, Users } from 'lucide-react'
 import { useEffect, useState, type CSSProperties } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { useAssistant } from '../components/assistant/AssistantProvider'
 import ErrorBanner from '../components/ErrorBanner'
 import NewNoteMenu from '../components/NewNoteMenu'
 import NoteEditor from '../components/NoteEditor'
 import ShareDialog from '../components/ShareDialog'
-import { TagChip } from '../components/ui'
+import { Menu, MenuItem, TagChip } from '../components/ui'
 import { getNotebook } from '../data/notebooks'
 import type { Template } from '../data/templates'
 import {
@@ -16,6 +17,7 @@ import { useAuth } from '../lib/auth'
 import { docToText } from '../lib/docExport'
 import { timeAgo } from '../lib/format'
 import { sharedWithMe } from '../lib/shares'
+import { sectionSource } from '../lib/studySource'
 import { removeNoteFiles } from '../lib/storage'
 import { tagColor } from '../lib/tags'
 
@@ -37,6 +39,7 @@ export default function NotebookPage() {
   const [error, setError] = useState<string | null>(null)
 
   const fail = (e: Error) => setError(e.message)
+  const assistant = useAssistant()
 
   // Rol en el cuaderno: propio o compartido conmigo
   useEffect(() => {
@@ -141,6 +144,22 @@ export default function NotebookPage() {
     }
   }
 
+  async function sectionAI(s: Section, action: 'cards' | 'quiz' | 'summary') {
+    try {
+      const src = await sectionSource(s.id)
+      if (!src.text.trim()) return window.alert('Este tema no tiene apuntes con texto todavía.')
+      if (action === 'cards') assistant.openCards({ ...src, noteId: null })
+      else if (action === 'quiz') assistant.openQuiz({ ...src, noteId: null })
+      else
+        assistant.ask(
+          `Haz un resumen de todo el tema «${src.title}» (${notebook!.name}) en forma de esquema, con los conceptos clave y lo más importante para el examen.\n\nApuntes del tema:\n${src.text.slice(0, 60000)}`,
+          { label: `Resumir el tema «${src.title}»`, useNote: false },
+        )
+    } catch (e) {
+      fail(e as Error)
+    }
+  }
+
   async function addNote(template: Template | null) {
     if (!sectionId) return
     try {
@@ -235,6 +254,25 @@ export default function NotebookPage() {
                       <ChevronRight size={14} className={`shrink-0 text-slate-400 transition ${active ? 'rotate-90' : ''}`} />
                       <span className="truncate">{s.title}</span>
                     </Link>
+                  )}
+                  {editingId !== s.id && (
+                    <div className={`${active ? 'flex' : 'hidden group-hover:flex'} shrink-0 items-center text-slate-400`}>
+                      <Menu
+                        title="IA y exportar"
+                        align="right"
+                        className="rounded p-1 text-violet-500 hover:bg-slate-200 dark:hover:bg-slate-700"
+                        label={<Sparkles size={13} />}
+                      >
+                        {(close) => (
+                          <>
+                            <MenuItem icon={<ListTree size={15} />} onClick={() => (close(), void sectionAI(s, 'summary'))}>Resumir el tema con IA</MenuItem>
+                            <MenuItem icon={<Layers size={15} />} onClick={() => (close(), void sectionAI(s, 'cards'))}>Tarjetas del tema con IA</MenuItem>
+                            <MenuItem icon={<FileQuestion size={15} />} onClick={() => (close(), void sectionAI(s, 'quiz'))}>Test del tema con IA</MenuItem>
+                            <MenuItem icon={<Printer size={15} />} onClick={() => (close(), void window.open(`/imprimir/tema/${s.id}`, '_blank'))}>Imprimir / PDF del tema</MenuItem>
+                          </>
+                        )}
+                      </Menu>
+                    </div>
                   )}
                   {editingId !== s.id && canWrite && (
                     <div className={`${active ? 'flex' : 'hidden group-hover:flex'} shrink-0 items-center text-slate-400`}>

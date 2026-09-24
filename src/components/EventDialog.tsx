@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { NOTEBOOKS, type NotebookSlug } from '../data/notebooks'
-import { deleteEvent, KIND_LABEL, saveEvent, type CalendarEvent, type EventKind } from '../lib/events'
+import { Sparkles } from 'lucide-react'
+import { daysUntil, deleteEvent, KIND_LABEL, saveEvent, type CalendarEvent, type EventKind } from '../lib/events'
+import { useAssistant } from './assistant/AssistantProvider'
 import { btnGhost, btnPrimary, inputCls, Modal } from './ui'
 
 interface Props {
@@ -19,6 +21,21 @@ export default function EventDialog({ event, date, onClose, onChanged }: Props) 
   const [done, setDone] = useState(event?.done ?? false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const assistant = useAssistant()
+
+  function studyPlan() {
+    const nb = NOTEBOOKS.find((n) => n.slug === notebook)
+    const days = daysUntil(day)
+    const when = new Date(day + 'T00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
+    assistant.ask(
+      `Hazme un plan de estudio día a día para preparar este ${KIND_LABEL[kind].toLowerCase()}: «${title}»` +
+        `${nb ? ` del módulo ${nb.name}` : ''}. Es el ${when} (faltan ${days} días).` +
+        `${details.trim() ? ` Notas sobre lo que entra: ${details.trim()}.` : ''}` +
+        ` Incluye repasos, práctica y un simulacro final. Si es una entrega, organiza las tareas por fases.`,
+      { label: `Plan de estudio: ${title}`, searchNotes: true, useNote: false },
+    )
+    onClose()
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -84,6 +101,11 @@ export default function EventDialog({ event, date, onClose, onChanged }: Props) 
           {event && (
             <button type="button" onClick={remove} className="rounded-md px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950">
               Borrar
+            </button>
+          )}
+          {event && daysUntil(day) >= 0 && (
+            <button type="button" onClick={studyPlan} className="flex items-center gap-1.5 rounded-md px-3 py-2 text-sm text-violet-700 hover:bg-violet-50 dark:text-violet-300 dark:hover:bg-violet-950">
+              <Sparkles size={15} /> Plan de estudio
             </button>
           )}
           <span className="flex-1" />

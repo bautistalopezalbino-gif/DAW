@@ -1,4 +1,4 @@
-import { CalendarDays, Home, Layers, LogOut, Menu, Moon, Search, Settings, Sun, Users, X } from 'lucide-react'
+import { CalendarDays, Home, Layers, LogOut, Menu, Moon, Search, Settings, Sparkles, Sun, Users, X } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { getNotebook, NOTEBOOKS } from '../data/notebooks'
@@ -9,9 +9,32 @@ import { SHARES_CHANGED, sharedWithMe, type Share } from '../lib/shares'
 import { supabase } from '../lib/supabase'
 import { tagColor, TAGS_CHANGED } from '../lib/tags'
 import { useTheme } from '../lib/theme'
+import { AssistantProvider, useAssistant } from './assistant/AssistantProvider'
 import SearchDialog from './SearchDialog'
 
 export default function Layout() {
+  return (
+    <AssistantProvider>
+      <Shell />
+    </AssistantProvider>
+  )
+}
+
+function AssistantButton() {
+  const { isOpen, setOpen } = useAssistant()
+  if (isOpen) return null
+  return (
+    <button
+      onClick={() => setOpen(true)}
+      title="Asistente IA (Ctrl+J)"
+      className="fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-violet-600 px-4 py-3 text-sm font-medium text-white shadow-lg shadow-violet-600/30 transition hover:scale-105"
+    >
+      <Sparkles size={18} /> <span className="hidden sm:inline">Asistente</span>
+    </button>
+  )
+}
+
+function Shell() {
   const { session } = useAuth()
   const email = session?.user.email ?? ''
   const { dark, toggle } = useTheme()
@@ -21,6 +44,7 @@ export default function Layout() {
   const [tags, setTags] = useState<{ tag: string; uses: number }[]>([])
   const [due, setDue] = useState(0)
   const location = useLocation()
+  const assistant = useAssistant()
 
   useEffect(() => setMenuOpen(false), [location.pathname])
 
@@ -146,7 +170,8 @@ export default function Layout() {
   )
 
   return (
-    <div className="flex h-full">
+    // En pantallas grandes el asistente no tapa el contenido: la página se estrecha a su lado
+    <div className={`flex h-full transition-[padding] ${assistant.isOpen ? 'lg:pr-[440px]' : ''}`}>
       <div className="hidden md:block">{sidebar}</div>
       {menuOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
@@ -169,6 +194,7 @@ export default function Layout() {
         </main>
       </div>
       {searchOpen && <SearchDialog onClose={() => setSearchOpen(false)} />}
+      <AssistantButton />
     </div>
   )
 }

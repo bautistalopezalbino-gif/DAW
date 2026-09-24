@@ -44,6 +44,10 @@ export async function createCard(card: Pick<Flashcard, 'notebook' | 'front' | 'b
   return check(await supabase.from('flashcards').insert(card).select(FIELDS).single()) as Flashcard
 }
 
+export async function createCards(cards: (Pick<Flashcard, 'notebook' | 'front' | 'back'> & { note_id?: string | null })[]) {
+  return check(await supabase.from('flashcards').insert(cards).select(FIELDS)) as Flashcard[]
+}
+
 export async function updateCard(id: string, patch: Partial<Pick<Flashcard, 'notebook' | 'front' | 'back'>>) {
   return check(await supabase.from('flashcards').update(patch).eq('id', id).select(FIELDS).single()) as Flashcard
 }

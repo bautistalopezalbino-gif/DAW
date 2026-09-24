@@ -1,5 +1,6 @@
-import { Layers, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { Layers, Pencil, Plus, RotateCcw, Sparkles, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useAssistant } from '../components/assistant/AssistantProvider'
 import CardDialog from '../components/CardDialog'
 import ErrorBanner from '../components/ErrorBanner'
 import { btnPrimary } from '../components/ui'
@@ -20,6 +21,7 @@ export default function ReviewPage() {
   const [reviewed, setReviewed] = useState(0)
   const [editing, setEditing] = useState<Flashcard | 'new' | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const assistant = useAssistant()
 
   const load = useCallback(() => {
     listCards()
@@ -27,6 +29,11 @@ export default function ReviewPage() {
       .catch((e: Error) => setError(e.message))
   }, [])
   useEffect(load, [load])
+  // Recarga al volver a la pestaña
+  useEffect(() => {
+    window.addEventListener('focus', load)
+    return () => window.removeEventListener('focus', load)
+  }, [load])
 
   const visible = useMemo(() => (cards ?? []).filter((c) => !filter || c.notebook === filter), [cards, filter])
   const dueCount = (slug?: NotebookSlug) => (cards ?? []).filter((c) => isDue(c) && (!slug || c.notebook === slug)).length
@@ -84,6 +91,12 @@ export default function ReviewPage() {
       <div className="mx-auto max-w-4xl px-4 py-8 sm:px-8">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="flex-1 text-2xl font-bold tracking-tight">Tarjetas de repaso</h1>
+          <button
+            onClick={() => assistant.openCards()}
+            className="flex items-center gap-1.5 rounded-md bg-gradient-to-r from-blue-600 to-violet-600 px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+          >
+            <Sparkles size={16} /> Generar con IA
+          </button>
           <button onClick={() => setEditing('new')} className={`${btnPrimary} flex items-center gap-1.5`}>
             <Plus size={16} /> Nueva tarjeta
           </button>

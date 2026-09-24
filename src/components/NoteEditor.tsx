@@ -17,6 +17,8 @@ import { downloadFile, slugify } from '../lib/download'
 import { createEditorExtensions } from '../lib/editorExtensions'
 import { removeNoteFiles, uploadFile, type NoteLocation } from '../lib/storage'
 import { TAGS_CHANGED } from '../lib/tags'
+import AiMenu from './assistant/AiMenu'
+import { useAssistant } from './assistant/AssistantProvider'
 import CardDialog from './CardDialog'
 import Presence from './Presence'
 import TagBar from './TagBar'
@@ -217,6 +219,25 @@ function EditorInner({
   )
   editorRef.current = editor
 
+  // El asistente sabe qué apunte está abierto (para usarlo como contexto e insertar respuestas)
+  const { setNote } = useAssistant()
+  const titleNow = useRef(title)
+  titleNow.current = title
+  useEffect(() => {
+    if (!editor) return
+    setNote({
+      id: note.id,
+      get title() {
+        return titleNow.current
+      },
+      notebook,
+      canWrite,
+      editor,
+      getText: () => `${titleNow.current}\n\n${editor.getText({ blockSeparator: '\n' })}`,
+    })
+    return () => setNote(null)
+  }, [editor, note.id, notebook, canWrite, setNote])
+
   // Título en tiempo real
   useEffect(
     () =>
@@ -316,6 +337,7 @@ function EditorInner({
         )}
         <span className="ml-auto" />
         <Presence awareness={provider.awareness} />
+        {editor && <AiMenu editor={editor} noteId={note.id} title={title} notebook={notebook} canWrite={canWrite} />}
         {uploading > 0 && <span className="shrink-0 text-xs text-slate-500">Subiendo {uploading}…</span>}
         {canWrite && (
           <span className={`hidden shrink-0 text-xs sm:inline ${status === 'error' ? 'text-red-600' : 'text-slate-400'}`}>
