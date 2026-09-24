@@ -10,6 +10,7 @@ import { supabase } from '../lib/supabase'
 import { tagColor, TAGS_CHANGED } from '../lib/tags'
 import { useTheme } from '../lib/theme'
 import { AssistantProvider, useAssistant } from './assistant/AssistantProvider'
+import { CollapsibleHeading, useCollapsed } from './Collapsible'
 import SearchDialog from './SearchDialog'
 
 export default function Layout() {
@@ -45,6 +46,8 @@ function Shell() {
   const [due, setDue] = useState(0)
   const location = useLocation()
   const assistant = useAssistant()
+  const [mineCollapsed, toggleMine] = useCollapsed('lateral-mis-cuadernos')
+  const [sharedCollapsed, toggleShared] = useCollapsed('lateral-compartidos')
 
   useEffect(() => setMenuOpen(false), [location.pathname])
 
@@ -105,31 +108,36 @@ function Shell() {
         <Item to="/repaso" icon={<Layers size={15} />} badge={due}>Repaso</Item>
         <Item to="/calendario" icon={<CalendarDays size={15} />}>Calendario</Item>
 
-        <Heading>Cuadernos</Heading>
-        {NOTEBOOKS.map((n) => (
-          <Item key={n.slug} to={`/c/${n.slug}`} icon={<span className="block h-3 w-3 rounded-sm" style={{ background: n.color }} />}>
-            {n.name}
-          </Item>
-        ))}
+        <CollapsibleHeading collapsed={mineCollapsed} onToggle={toggleMine} count={NOTEBOOKS.length}>
+          Mis cuadernos
+        </CollapsibleHeading>
+        {!mineCollapsed &&
+          NOTEBOOKS.map((n) => (
+            <Item key={n.slug} to={`/c/${n.slug}`} icon={<span className="block h-3 w-3 rounded-sm" style={{ background: n.color }} />}>
+              {n.name}
+            </Item>
+          ))}
 
-        {shared.length > 0 && (
-          <>
-            <Heading>Compartidos conmigo</Heading>
-            {shared.map((s) => {
-              const nb = getNotebook(s.notebook)
-              return (
-                <Item
-                  key={s.id}
-                  to={`/s/${s.owner_id}/${s.notebook}`}
-                  icon={<Users size={14} style={{ color: nb?.color }} />}
-                  title={`${nb?.name} de ${s.owner_email}`}
-                >
-                  {nb?.code} · <span className="text-slate-400">{s.owner_email.split('@')[0]}</span>
-                </Item>
-              )
-            })}
-          </>
+        <CollapsibleHeading collapsed={sharedCollapsed} onToggle={toggleShared} count={shared.length}>
+          Compartidos conmigo
+        </CollapsibleHeading>
+        {!sharedCollapsed && shared.length === 0 && (
+          <p className="px-3 py-1 text-xs text-slate-400">Nadie ha compartido cuadernos contigo todavía.</p>
         )}
+        {!sharedCollapsed &&
+          shared.map((s) => {
+            const nb = getNotebook(s.notebook)
+            return (
+              <Item
+                key={s.id}
+                to={`/s/${s.owner_id}/${s.notebook}`}
+                icon={<Users size={14} style={{ color: nb?.color }} />}
+                title={`${nb?.name} de ${s.owner_email}`}
+              >
+                {nb?.code} · <span className="text-slate-400">{s.owner_email.split('@')[0]}</span>
+              </Item>
+            )
+          })}
 
         {tags.length > 0 && (
           <>

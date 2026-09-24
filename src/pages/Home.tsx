@@ -2,6 +2,7 @@ import { CalendarDays, Layers, Pin, Sparkles, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAssistant } from '../components/assistant/AssistantProvider'
+import { CollapsibleHeading, useCollapsed } from '../components/Collapsible'
 import ErrorBanner from '../components/ErrorBanner'
 import NoteCards from '../components/NoteCards'
 import { getNotebook, NOTEBOOKS } from '../data/notebooks'
@@ -20,6 +21,8 @@ export default function Home() {
   const [shared, setShared] = useState<Share[]>([])
   const [error, setError] = useState<string | null>(null)
   const assistant = useAssistant()
+  const [mineCollapsed, toggleMine] = useCollapsed('inicio-mis-cuadernos')
+  const [sharedCollapsed, toggleShared] = useCollapsed('inicio-compartidos')
 
   useEffect(() => {
     const fail = (e: Error) => setError(e.message)
@@ -38,10 +41,11 @@ export default function Home() {
     <div className="h-full overflow-y-auto">
       <ErrorBanner error={error} />
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-8">
-        <h1 className="text-2xl font-bold tracking-tight">Mis cuadernos</h1>
-        <p className="mt-1 text-sm text-slate-500">Elige un módulo para ver sus temas y apuntes.</p>
-
-        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        <CollapsibleHeading collapsed={mineCollapsed} onToggle={toggleMine} count={NOTEBOOKS.length} className="text-sm">
+          Mis cuadernos
+        </CollapsibleHeading>
+        {!mineCollapsed && (
+        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {NOTEBOOKS.map((n) => (
             <Link
               key={n.slug}
@@ -56,6 +60,7 @@ export default function Home() {
             </Link>
           ))}
         </div>
+        )}
 
         <button
           onClick={() => assistant.setOpen(true)}
@@ -103,11 +108,14 @@ export default function Home() {
           </Link>
         </div>
 
-        {shared.length > 0 && (
-          <section className="mt-10">
-            <h2 className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-500">
-              <Users size={14} /> Compartidos conmigo
-            </h2>
+        <section className="mt-10">
+          <CollapsibleHeading collapsed={sharedCollapsed} onToggle={toggleShared} count={shared.length} className="text-sm">
+            <Users size={14} /> Compartidos conmigo
+          </CollapsibleHeading>
+          {!sharedCollapsed && shared.length === 0 && (
+            <p className="mt-3 text-sm text-slate-500">Nadie ha compartido cuadernos contigo todavía.</p>
+          )}
+          {!sharedCollapsed && shared.length > 0 && (
             <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {shared.map((s) => {
                 const nb = getNotebook(s.notebook)
@@ -128,8 +136,8 @@ export default function Home() {
                 )
               })}
             </div>
-          </section>
-        )}
+          )}
+        </section>
 
         {pinned.length > 0 && (
           <section className="mt-10">
