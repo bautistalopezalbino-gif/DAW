@@ -1,8 +1,9 @@
-import { ArrowDown, ArrowUp, ChevronRight, FileQuestion, FileText, Layers, ListTree, Pencil, Pin, Plus, Printer, Sparkles, Trash2, Users } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronRight, FileDown, FileQuestion, FileText, Layers, ListTree, Pencil, Pin, Plus, Printer, Sparkles, Trash2, Users } from 'lucide-react'
 import { useEffect, useState, type CSSProperties } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useAssistant } from '../components/assistant/AssistantProvider'
 import ErrorBanner from '../components/ErrorBanner'
+import ExportPdfDialog from '../components/ExportPdfDialog'
 import NewNoteMenu from '../components/NewNoteMenu'
 import NoteEditor from '../components/NoteEditor'
 import ShareDialog from '../components/ShareDialog'
@@ -36,6 +37,7 @@ export default function NotebookPage() {
   const [notes, setNotes] = useState<NoteSummary[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [sharing, setSharing] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const fail = (e: Error) => setError(e.message)
@@ -197,6 +199,14 @@ export default function NotebookPage() {
               <p className="text-xs font-bold tracking-widest" style={{ color: notebook.color }}>{notebook.code}</p>
               <h1 className="text-lg font-bold leading-tight">{notebook.name}</h1>
             </div>
+            <button
+              onClick={() => setExporting(true)}
+              disabled={!sections?.length}
+              title="Exportar temas a PDF"
+              className="flex shrink-0 items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              <FileDown size={14} /> PDF
+            </button>
             {isMine && (
               <button
                 onClick={() => setSharing(true)}
@@ -257,6 +267,9 @@ export default function NotebookPage() {
                   )}
                   {editingId !== s.id && (
                     <div className={`${active ? 'flex' : 'hidden group-hover:flex'} shrink-0 items-center text-slate-400`}>
+                      <IconBtn title="Exportar este tema a PDF" onClick={() => void window.open(`/imprimir/tema/${s.id}`, '_blank')}>
+                        <FileDown size={13} />
+                      </IconBtn>
                       <Menu
                         title="IA y exportar"
                         align="right"
@@ -362,6 +375,7 @@ export default function NotebookPage() {
         )}
       </div>
 
+      {exporting && sections && <ExportPdfDialog notebook={notebook} sections={sections} onClose={() => setExporting(false)} />}
       {sharing && <ShareDialog notebook={notebook} myId={myId} myEmail={myEmail} onClose={() => setSharing(false)} />}
     </div>
   )

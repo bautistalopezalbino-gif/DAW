@@ -96,6 +96,7 @@ body { @apply bg-white text-slate-900 antialiased dark:bg-slate-950 dark:text-sl
 .collaboration-carets__selection { opacity: 0.25; }
 
 /* Impresión / PDF */
+.print-page .tiptap { min-height: 0; }
 .print-page .drawing svg { max-width: 100%; height: auto; }
 .print-page .file-attachment a { color: inherit; }
 .print-page pre { white-space: pre-wrap; }

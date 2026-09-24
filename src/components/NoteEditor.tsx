@@ -354,6 +354,9 @@ function EditorInner({
             {pinned ? <PinOff size={16} /> : <Pin size={16} />}
           </button>
         )}
+        <button onClick={() => void print()} title="Exportar este apunte a PDF" className="rounded p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
+          <FileDown size={16} />
+        </button>
         <Menu
           title="Más opciones"
           align="right"

@@ -1,5 +1,4 @@
 import { generateHTML } from '@tiptap/core'
-import type { JSONContent } from '@tiptap/react'
 import hljs from 'highlight.js/lib/common'
 import dos from 'highlight.js/lib/languages/dos'
 import powershell from 'highlight.js/lib/languages/powershell'
@@ -14,14 +13,26 @@ import { contentExtensions } from '../lib/editorExtensions'
 hljs.registerLanguage('powershell', powershell)
 hljs.registerLanguage('dos', dos)
 
+interface PrintSection {
+  id: string
+  title: string
+  notes: { title: string; tags: string[]; html: string }[]
+}
+
 interface Page {
   heading: string
   subtitle: string
   color: string
-  notes: { title: string; tags: string[]; html: string }[]
+  single: boolean // un solo apunte
+  sections: PrintSection[]
 }
 
-/** Vista limpia para imprimir o «Guardar como PDF» un apunte o un tema completo. */
+/**
+ * Vista limpia para imprimir o «Guardar como PDF»:
+ *  /imprimir/apunte/:id      un apunte
+ *  /imprimir/tema/:id        un tema (unidad) completo
+ *  /imprimir/temas/:id1,id2  varios temas del mismo cuaderno, con portada e índice
+ */
 export default function PrintPage() {
   const { kind, id } = useParams()
   const [page, setPage] = useState<Page | null>(null)
@@ -31,27 +42,48 @@ export default function PrintPage() {
 
   useEffect(() => {
     async function load() {
-      let notes: Note[]
-      let sectionId: string
+      const render = async (notes: Note[]) => {
+        const urls = await resolveUrls(notes.map((n) => n.content))
+        return notes.map((n) => ({
+          title: n.title || 'Sin título',
+          tags: n.tags ?? [],
+          html: generateHTML(withUrls(n.content, urls), contentExtensions),
+        }))
+      }
       if (kind === 'apunte') {
         const n = await getNote(id!)
-        notes = [n]
-        sectionId = n.section_id
-      } else {
-        notes = await listNotesFull(id!)
-        sectionId = id!
+        const section = await getSection(n.section_id)
+        const nb = getNotebook(section.notebook)!
+        setPage({
+          heading: n.title || 'Sin título',
+          subtitle: `${nb.name} · ${section.title}`,
+          color: nb.color,
+          single: true,
+          sections: [{ id: section.id, title: section.title, notes: await render([n]) }],
+        })
+        document.title = `${n.title || 'Apunte'} · Cuadernos DAW`
+        return
       }
-      const section = await getSection(sectionId)
-      const nb = getNotebook(section.notebook)!
-      const urls = await resolveUrls(notes.map((n) => n.content))
-      const html = (doc: JSONContent | null) => generateHTML(withUrls(doc, urls), contentExtensions)
+      const ids = (id ?? '').split(',').filter(Boolean)
+      const sections = await Promise.all(
+        ids.map(async (sid) => {
+          const [section, notes] = await Promise.all([getSection(sid), listNotesFull(sid)])
+          return { section, notes }
+        }),
+      )
+      if (!sections.length) throw new Error('No hay temas que exportar.')
+      const nb = getNotebook(sections[0].section.notebook)!
+      const many = sections.length > 1
       setPage({
-        heading: kind === 'apunte' ? notes[0].title || 'Sin título' : section.title,
-        subtitle: kind === 'apunte' ? `${nb.name} · ${section.title}` : nb.name,
+        heading: many ? nb.name : sections[0].section.title,
+        subtitle: many ? `${sections.length} temas` : nb.name,
         color: nb.color,
-        notes: notes.map((n) => ({ title: n.title || 'Sin título', tags: n.tags ?? [], html: html(n.content) })),
+        single: false,
+        sections: await Promise.all(
+          sections.map(async ({ section, notes }) => ({ id: section.id, title: section.title, notes: await render(notes) })),
+        ),
       })
-      document.title = `${kind === 'apunte' ? notes[0].title : section.title} · Cuadernos DAW`
+      document.title = `${many ? nb.name : sections[0].section.title} · Cuadernos DAW`
     }
     load().catch((e: Error) => setError(e.message))
   }, [kind, id])
@@ -85,15 +117,42 @@ export default function PrintPage() {
         <header className="mb-8 border-b-4 pb-4" style={{ borderColor: page.color }}>
           <p className="text-sm font-semibold" style={{ color: page.color }}>{page.subtitle}</p>
           <h1 className="text-3xl font-bold tracking-tight">{page.heading}</h1>
+          <p className="mt-1 text-xs text-slate-400">
+            Exportado el {new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })} · Cuadernos DAW
+          </p>
         </header>
-        {page.notes.map((n, i) => (
-          <article key={i} className={i > 0 ? 'print-break mt-12' : ''}>
-            {kind !== 'apunte' && <h2 className="mb-2 text-2xl font-bold tracking-tight">{n.title}</h2>}
-            {n.tags.length > 0 && <p className="mb-4 text-xs text-slate-500">{n.tags.map((t) => `#${t}`).join('  ')}</p>}
-            <div className="tiptap prose prose-slate max-w-none prose-pre:bg-slate-900" dangerouslySetInnerHTML={{ __html: n.html }} />
-          </article>
+
+        {page.sections.length > 1 && (
+          <nav className="mb-10">
+            <h2 className="mb-2 text-lg font-bold">Índice</h2>
+            <ol className="list-decimal space-y-1 pl-6 text-sm">
+              {page.sections.map((s) => (
+                <li key={s.id}>
+                  <span className="font-medium">{s.title}</span>
+                  {s.notes.length > 0 && <span className="text-slate-500"> — {s.notes.map((n) => n.title).join(' · ')}</span>}
+                </li>
+              ))}
+            </ol>
+          </nav>
+        )}
+
+        {page.sections.map((s, si) => (
+          <section key={s.id} className={page.sections.length > 1 ? `print-break pt-2 ${si > 0 ? 'mt-14' : ''}` : ''}>
+            {page.sections.length > 1 && (
+              <h2 className="mb-6 border-b-2 pb-2 text-2xl font-bold tracking-tight" style={{ borderColor: page.color }}>
+                {si + 1}. {s.title}
+              </h2>
+            )}
+            {s.notes.map((n, i) => (
+              <article key={i} className={i > 0 ? 'mt-12' : ''}>
+                {!page.single && <h3 className="mb-2 text-xl font-bold tracking-tight">{n.title}</h3>}
+                {n.tags.length > 0 && <p className="mb-4 text-xs text-slate-500">{n.tags.map((t) => `#${t}`).join('  ')}</p>}
+                <div className="tiptap prose prose-slate max-w-none prose-pre:bg-slate-900" dangerouslySetInnerHTML={{ __html: n.html }} />
+              </article>
+            ))}
+            {s.notes.length === 0 && <p className="text-slate-500">Este tema no tiene apuntes.</p>}
+          </section>
         ))}
-        {page.notes.length === 0 && <p className="text-slate-500">Este tema no tiene apuntes.</p>}
       </div>
     </div>
   )
