@@ -2,6 +2,7 @@
 -- tarjetas de repaso, calendario y archivos adjuntos.
 -- Ejecutar una vez en Supabase: SQL Editor → New query → pegar → Run.
 -- Se puede ejecutar varias veces sin problema.
+-- Si el editor corta el texto al pegar, ejecuta las partes (marcadas con «@parte») una a una y en orden.
 
 -- =====================================================================
 -- 1. Compartir cuadernos
@@ -52,6 +53,7 @@ drop trigger if exists shares_set_owner_email on public.notebook_shares;
 create trigger shares_set_owner_email before insert on public.notebook_shares
   for each row execute function public.shares_set_owner_email();
 
+-- @parte 2
 -- Rol del usuario actual en el cuaderno <nb> de <owner>: 'owner', 'editor', 'lector' o null
 create or replace function public.notebook_role(p_owner uuid, p_notebook text)
 returns text
@@ -115,6 +117,7 @@ drop trigger if exists sections_keep_owner on public.sections;
 create trigger sections_keep_owner before update of user_id on public.sections
   for each row execute function public.sections_keep_owner();
 
+-- @parte 3
 -- Nuevas políticas de temas y apuntes (sustituyen a las de la migración 001)
 drop policy if exists "sections_own" on public.sections;
 drop policy if exists "sections_read" on public.sections;
@@ -159,6 +162,7 @@ create policy "notes_delete" on public.notes
 -- Estado del documento colaborativo (Yjs, base64)
 alter table public.notes add column if not exists ydoc text;
 
+-- @parte 4
 -- =====================================================================
 -- 2. Etiquetas
 -- =====================================================================
@@ -199,6 +203,7 @@ create policy "flashcards_own" on public.flashcards
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
 
+-- @parte 5
 -- =====================================================================
 -- 4. Calendario de exámenes y entregas — personal
 -- =====================================================================
@@ -222,6 +227,7 @@ create policy "events_own" on public.events
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
 
+-- @parte 6
 -- =====================================================================
 -- 5. Archivos adjuntos (imágenes, PDF…)
 -- Ruta: <owner_id>/<cuaderno>/<note_id>/<archivo>; acceso según el rol en el cuaderno
@@ -265,6 +271,7 @@ create policy "attachments_delete" on storage.objects
   for delete to authenticated
   using (bucket_id = 'attachments' and public.storage_role(name) in ('owner', 'editor'));
 
+-- @parte 7
 -- =====================================================================
 -- 6. Canales en tiempo real privados por apunte ("note:<id>")
 -- Solo quien puede ver el apunte recibe los cambios; solo editores los envían.

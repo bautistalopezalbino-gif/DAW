@@ -36,7 +36,9 @@ personas invitadas; los lectores no pueden modificar nada, tampoco archivos ni c
 
 1. **Base de datos (una vez, en orden):** en Supabase → *SQL Editor* → *New query*, pega y ejecuta
    (*Run*) cada archivo de [`supabase/migrations/`](supabase/migrations/):
-   `001_esquema_inicial.sql` y `002_compartir_etiquetas_tarjetas_calendario.sql`.
+   `001_esquema_inicial.sql` y `002_compartir_etiquetas_tarjetas_calendario.sql`. Si el editor corta
+   el texto al pegar, ejecuta el 002 por partes (marcadas con `-- @parte N`), en orden; la propia web
+   ofrece un botón para copiar cada parte cuando detecta que falta.
 2. **Instalar y arrancar en local:**
    ```bash
    npm install
