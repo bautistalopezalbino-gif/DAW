@@ -69,3 +69,41 @@ body { @apply bg-white text-slate-900 antialiased dark:bg-slate-950 dark:text-sl
 .hljs-meta, .hljs-deletion { color: #ff5370; }
 .hljs-emphasis { font-style: italic; }
 .hljs-strong { font-weight: bold; }
+
+/* Cursores de otras personas (edición en tiempo real) */
+.collaboration-carets__caret {
+  position: relative;
+  margin-left: -1px;
+  margin-right: -1px;
+  border-left: 1px solid;
+  border-right: 1px solid;
+  word-break: normal;
+  pointer-events: none;
+}
+.collaboration-carets__label {
+  position: absolute;
+  top: -1.35em;
+  left: -1px;
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px 4px 4px 0;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: normal;
+  color: #fff;
+  white-space: nowrap;
+  user-select: none;
+}
+.collaboration-carets__selection { opacity: 0.25; }
+
+/* Impresión / PDF */
+.print-page .drawing svg { max-width: 100%; height: auto; }
+.print-page .file-attachment a { color: inherit; }
+.print-page pre { white-space: pre-wrap; }
+.print-page pre code.hljs { background: transparent; padding: 0; }
+@media print {
+  html, body { background: #fff !important; color: #000; }
+  .no-print { display: none !important; }
+  .print-break { break-before: page; }
+  .print-page img, .print-page pre, .print-page table, .print-page .drawing { break-inside: avoid; }
+  @page { margin: 16mm; }
+}

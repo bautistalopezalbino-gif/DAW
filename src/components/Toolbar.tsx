@@ -1,12 +1,21 @@
 import { useEditorState, type Editor } from '@tiptap/react'
 import {
-  Bold, Code, Columns3, Heading1, Heading2, Heading3, Highlighter, Italic, Link2, List,
-  ListChecks, ListOrdered, Minus, Quote, Redo2, Rows3, SquareCode, Strikethrough, Table,
+  Bold, Code, Columns3, Heading1, Heading2, Heading3, Highlighter, ImagePlus, Italic, Link2, List,
+  ListChecks, ListOrdered, Minus, Paperclip, PenTool, Quote, Redo2, Rows3, SquareCode, Strikethrough, Table,
   Trash2, Underline, Undo2,
 } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 
-export default function Toolbar({ editor }: { editor: Editor }) {
+export default function Toolbar({ editor, onPickFiles }: { editor: Editor; onPickFiles: (files: File[]) => void }) {
+  const fileInput = useRef<HTMLInputElement>(null)
+
+  function pick(accept: string) {
+    const input = fileInput.current!
+    input.accept = accept
+    input.value = ''
+    input.click()
+  }
+
   const s = useEditorState({
     editor,
     selector: ({ editor: e }) => ({
@@ -65,6 +74,9 @@ export default function Toolbar({ editor }: { editor: Editor }) {
       <Btn title="Bloque de código" active={s.codeBlock} onClick={() => c().toggleCodeBlock().run()}><SquareCode size={16} /></Btn>
       <Btn title="Línea separadora" onClick={() => c().setHorizontalRule().run()}><Minus size={16} /></Btn>
       <Sep />
+      <Btn title="Insertar imagen (también puedes pegarla con Ctrl+V o arrastrarla)" onClick={() => pick('image/*')}><ImagePlus size={16} /></Btn>
+      <Btn title="Adjuntar archivo (PDF, ZIP…)" onClick={() => pick('')}><Paperclip size={16} /></Btn>
+      <Btn title="Dibujo a mano" onClick={() => c().insertDrawing().run()}><PenTool size={16} /></Btn>
       <Btn title="Insertar tabla" onClick={() => c().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}><Table size={16} /></Btn>
       {s.table && (
         <>
@@ -75,6 +87,16 @@ export default function Toolbar({ editor }: { editor: Editor }) {
           <Btn title="Borrar tabla" onClick={() => c().deleteTable().run()}><Trash2 size={16} /></Btn>
         </>
       )}
+      <input
+        ref={fileInput}
+        type="file"
+        multiple
+        hidden
+        onChange={(e) => {
+          const files = Array.from(e.target.files ?? [])
+          if (files.length) onPickFiles(files)
+        }}
+      />
     </div>
   )
 }

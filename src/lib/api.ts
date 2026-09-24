@@ -2,8 +2,11 @@ import type { JSONContent } from '@tiptap/react'
 import type { NotebookSlug } from '../data/notebooks'
 import { supabase } from './supabase'
 
+export type Role = 'owner' | 'editor' | 'lector'
+
 export interface Section {
   id: string
+  user_id: string
   notebook: NotebookSlug
   title: string
   position: number
@@ -11,15 +14,18 @@ export interface Section {
 
 export interface NoteSummary {
   id: string
+  user_id: string
   section_id: string
   title: string
   pinned: boolean
+  tags: string[]
   updated_at: string
 }
 
 export interface Note extends NoteSummary {
   content: JSONContent | null
   content_text: string
+  ydoc: string | null
 }
 
 export interface NoteWithPlace extends NoteSummary {
@@ -27,32 +33,50 @@ export interface NoteWithPlace extends NoteSummary {
   sections: { notebook: NotebookSlug; title: string } | null
 }
 
-function check<T>(res: { data: T; error: { message: string } | null }): T {
+export interface NoteInit {
+  title?: string
+  content?: JSONContent
+  content_text?: string
+}
+
+export function check<T>(res: { data: T; error: { message: string } | null }): T {
   if (res.error) throw new Error(res.error.message)
   return res.data
 }
 
+/** Ruta base de un cuaderno: propio (/c/…) o compartido por otra persona (/s/<dueño>/…). */
+export function notebookBase(slug: string, ownerId: string, myId: string): string {
+  return ownerId === myId ? `/c/${slug}` : `/s/${ownerId}/${slug}`
+}
+
+export function noteUrl(n: NoteWithPlace, myId: string): string {
+  return `${notebookBase(n.sections?.notebook ?? 'pro', n.user_id, myId)}/${n.section_id}/${n.id}`
+}
+
 // ---------- Temas ----------
 
-export async function listSections(notebook: NotebookSlug): Promise<Section[]> {
+const SECTION = 'id, user_id, notebook, title, position'
+
+export async function listSections(notebook: NotebookSlug, ownerId: string): Promise<Section[]> {
   return check(
     await supabase
       .from('sections')
-      .select('id, notebook, title, position')
+      .select(SECTION)
       .eq('notebook', notebook)
+      .eq('user_id', ownerId)
       .order('position')
       .order('created_at'),
   ) as Section[]
 }
 
-export async function createSection(notebook: NotebookSlug, title: string, position: number) {
+export async function createSection(notebook: NotebookSlug, ownerId: string, title: string, position: number) {
   return check(
-    await supabase
-      .from('sections')
-      .insert({ notebook, title, position })
-      .select('id, notebook, title, position')
-      .single(),
+    await supabase.from('sections').insert({ notebook, user_id: ownerId, title, position }).select(SECTION).single(),
   ) as Section
+}
+
+export async function getSection(id: string): Promise<Section> {
+  return check(await supabase.from('sections').select(SECTION).eq('id', id).single()) as Section
 }
 
 export async function renameSection(id: string, title: string) {
@@ -71,7 +95,8 @@ export async function deleteSection(id: string) {
 
 // ---------- Apuntes ----------
 
-const SUMMARY = 'id, section_id, title, pinned, updated_at'
+const SUMMARY = 'id, user_id, section_id, title, pinned, tags, updated_at'
+const WITH_PLACE = `${SUMMARY}, content_text, sections(notebook, title)`
 
 export async function listNotes(sectionId: string): Promise<NoteSummary[]> {
   return check(
@@ -84,50 +109,58 @@ export async function listNotes(sectionId: string): Promise<NoteSummary[]> {
   ) as NoteSummary[]
 }
 
+export async function listNotesFull(sectionId: string): Promise<Note[]> {
+  return check(
+    await supabase
+      .from('notes')
+      .select(`${SUMMARY}, content, content_text, ydoc`)
+      .eq('section_id', sectionId)
+      .order('created_at'),
+  ) as Note[]
+}
+
 export async function getNote(id: string): Promise<Note> {
   return check(
-    await supabase.from('notes').select(`${SUMMARY}, content, content_text`).eq('id', id).single(),
+    await supabase.from('notes').select(`${SUMMARY}, content, content_text, ydoc`).eq('id', id).single(),
   ) as Note
 }
 
-export async function createNote(sectionId: string): Promise<NoteSummary> {
+export async function getNoteYdoc(id: string): Promise<string | null> {
+  const row = check(await supabase.from('notes').select('ydoc').eq('id', id).single()) as { ydoc: string | null }
+  return row.ydoc
+}
+
+export async function createNote(sectionId: string, init: NoteInit = {}): Promise<NoteSummary> {
   return check(
-    await supabase.from('notes').insert({ section_id: sectionId }).select(SUMMARY).single(),
+    await supabase.from('notes').insert({ section_id: sectionId, ...init }).select(SUMMARY).single(),
   ) as NoteSummary
 }
 
-export async function updateNote(
-  id: string,
-  patch: Partial<Pick<Note, 'title' | 'content' | 'content_text' | 'pinned'>>,
-): Promise<NoteSummary> {
-  return check(
-    await supabase.from('notes').update(patch).eq('id', id).select(SUMMARY).single(),
-  ) as NoteSummary
+export type NotePatch = Partial<Pick<Note, 'title' | 'content' | 'content_text' | 'pinned' | 'tags' | 'ydoc'>>
+
+export async function updateNote(id: string, patch: NotePatch): Promise<NoteSummary> {
+  return check(await supabase.from('notes').update(patch).eq('id', id).select(SUMMARY).single()) as NoteSummary
 }
 
 export async function deleteNote(id: string) {
   check(await supabase.from('notes').delete().eq('id', id))
 }
 
-const WITH_PLACE = `${SUMMARY}, content_text, sections(notebook, title)`
-
 export async function recentNotes(limit = 8): Promise<NoteWithPlace[]> {
   return check(
-    await supabase
-      .from('notes')
-      .select(WITH_PLACE)
-      .order('updated_at', { ascending: false })
-      .limit(limit),
+    await supabase.from('notes').select(WITH_PLACE).order('updated_at', { ascending: false }).limit(limit),
   ) as unknown as NoteWithPlace[]
 }
 
 export async function pinnedNotes(): Promise<NoteWithPlace[]> {
   return check(
-    await supabase
-      .from('notes')
-      .select(WITH_PLACE)
-      .eq('pinned', true)
-      .order('updated_at', { ascending: false }),
+    await supabase.from('notes').select(WITH_PLACE).eq('pinned', true).order('updated_at', { ascending: false }),
+  ) as unknown as NoteWithPlace[]
+}
+
+export async function notesByTag(tag: string): Promise<NoteWithPlace[]> {
+  return check(
+    await supabase.from('notes').select(WITH_PLACE).contains('tags', [tag]).order('updated_at', { ascending: false }),
   ) as unknown as NoteWithPlace[]
 }
 
@@ -142,6 +175,8 @@ export async function searchNotes(query: string): Promise<NoteWithPlace[]> {
   ) as unknown as NoteWithPlace[]
 }
 
-export function noteUrl(n: { id: string; section_id: string; sections: { notebook: string } | null }) {
-  return `/c/${n.sections?.notebook ?? 'pro'}/${n.section_id}/${n.id}`
+// ---------- Etiquetas ----------
+
+export async function userTags(): Promise<{ tag: string; uses: number }[]> {
+  return check(await supabase.rpc('user_tags')) as { tag: string; uses: number }[]
 }

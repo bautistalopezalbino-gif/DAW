@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getNotebook } from '../data/notebooks'
 import { noteUrl, searchNotes, type NoteWithPlace } from '../lib/api'
+import { useAuth } from '../lib/auth'
 
 export default function SearchDialog({ onClose }: { onClose: () => void }) {
   const [query, setQuery] = useState('')
@@ -11,6 +12,7 @@ export default function SearchDialog({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
+  const { session } = useAuth()
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => inputRef.current?.focus(), [])
@@ -42,7 +44,7 @@ export default function SearchDialog({ onClose }: { onClose: () => void }) {
   }, [query])
 
   function open(n: NoteWithPlace) {
-    navigate(noteUrl(n))
+    navigate(noteUrl(n, session!.user.id))
     onClose()
   }
 

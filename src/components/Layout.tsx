@@ -1,20 +1,48 @@
-import { LogOut, Menu, Moon, Search, Sun, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { CalendarDays, Home, Layers, LogOut, Menu, Moon, Search, Settings, Sun, Users, X } from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { NOTEBOOKS } from '../data/notebooks'
+import { getNotebook, NOTEBOOKS } from '../data/notebooks'
+import { userTags } from '../lib/api'
 import { useAuth } from '../lib/auth'
+import { countDue } from '../lib/cards'
+import { SHARES_CHANGED, sharedWithMe, type Share } from '../lib/shares'
 import { supabase } from '../lib/supabase'
+import { tagColor, TAGS_CHANGED } from '../lib/tags'
 import { useTheme } from '../lib/theme'
 import SearchDialog from './SearchDialog'
 
 export default function Layout() {
   const { session } = useAuth()
+  const email = session?.user.email ?? ''
   const { dark, toggle } = useTheme()
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [shared, setShared] = useState<Share[]>([])
+  const [tags, setTags] = useState<{ tag: string; uses: number }[]>([])
+  const [due, setDue] = useState(0)
   const location = useLocation()
 
   useEffect(() => setMenuOpen(false), [location.pathname])
+
+  // Contador de tarjetas pendientes (se refresca al navegar)
+  useEffect(() => {
+    countDue()
+      .then(setDue)
+      .catch(() => {})
+  }, [location.pathname])
+
+  useEffect(() => {
+    const loadShared = () => sharedWithMe(email).then(setShared).catch(() => {})
+    const loadTags = () => userTags().then(setTags).catch(() => {})
+    loadShared()
+    loadTags()
+    window.addEventListener(SHARES_CHANGED, loadShared)
+    window.addEventListener(TAGS_CHANGED, loadTags)
+    return () => {
+      window.removeEventListener(SHARES_CHANGED, loadShared)
+      window.removeEventListener(TAGS_CHANGED, loadTags)
+    }
+  }, [email])
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -41,43 +69,76 @@ export default function Layout() {
 
       <button
         onClick={() => setSearchOpen(true)}
-        className="mx-3 mb-3 flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-500 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-950 dark:hover:border-slate-600"
+        className="mx-3 mb-2 flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-500 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-950 dark:hover:border-slate-600"
       >
         <Search size={15} />
         <span className="flex-1 text-left">Buscar</span>
         <kbd className="rounded border border-slate-200 px-1 text-[10px] dark:border-slate-700">Ctrl K</kbd>
       </button>
 
-      <p className="px-4 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Cuadernos</p>
-      <nav className="flex-1 space-y-0.5 overflow-y-auto px-2">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-3">
+        <Item to="/" end icon={<Home size={15} />}>Inicio</Item>
+        <Item to="/repaso" icon={<Layers size={15} />} badge={due}>Repaso</Item>
+        <Item to="/calendario" icon={<CalendarDays size={15} />}>Calendario</Item>
+
+        <Heading>Cuadernos</Heading>
         {NOTEBOOKS.map((n) => (
-          <NavLink
-            key={n.slug}
-            to={`/c/${n.slug}`}
-            className={({ isActive }) =>
-              `flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm ${
-                isActive
-                  ? 'bg-white font-medium shadow-sm dark:bg-slate-800'
-                  : 'text-slate-600 hover:bg-slate-200/60 dark:text-slate-300 dark:hover:bg-slate-800/60'
-              }`
-            }
-          >
-            <span className="h-3 w-3 shrink-0 rounded-sm" style={{ background: n.color }} />
-            <span className="truncate">{n.name}</span>
-          </NavLink>
+          <Item key={n.slug} to={`/c/${n.slug}`} icon={<span className="block h-3 w-3 rounded-sm" style={{ background: n.color }} />}>
+            {n.name}
+          </Item>
         ))}
+
+        {shared.length > 0 && (
+          <>
+            <Heading>Compartidos conmigo</Heading>
+            {shared.map((s) => {
+              const nb = getNotebook(s.notebook)
+              return (
+                <Item
+                  key={s.id}
+                  to={`/s/${s.owner_id}/${s.notebook}`}
+                  icon={<Users size={14} style={{ color: nb?.color }} />}
+                  title={`${nb?.name} de ${s.owner_email}`}
+                >
+                  {nb?.code} · <span className="text-slate-400">{s.owner_email.split('@')[0]}</span>
+                </Item>
+              )
+            })}
+          </>
+        )}
+
+        {tags.length > 0 && (
+          <>
+            <Heading>
+              <Link to="/etiqueta" className="hover:underline">Etiquetas</Link>
+            </Heading>
+            <div className="flex flex-wrap gap-1 px-2">
+              {tags.slice(0, 14).map((t) => (
+                <NavLink
+                  key={t.tag}
+                  to={`/etiqueta/${encodeURIComponent(t.tag)}`}
+                  className="rounded-full px-2 py-0.5 text-xs font-medium"
+                  style={{ color: tagColor(t.tag), background: `color-mix(in srgb, ${tagColor(t.tag)} 14%, transparent)` }}
+                >
+                  #{t.tag}
+                </NavLink>
+              ))}
+            </div>
+          </>
+        )}
       </nav>
 
       <div className="border-t border-slate-200 p-3 dark:border-slate-800">
-        <p className="truncate px-1 pb-2 text-xs text-slate-500" title={session?.user.email}>
-          {session?.user.email}
-        </p>
+        <p className="truncate px-1 pb-2 text-xs text-slate-500" title={email}>{email}</p>
         <div className="flex gap-1">
-          <button onClick={toggle} className="flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800">
-            {dark ? <Sun size={14} /> : <Moon size={14} />} {dark ? 'Claro' : 'Oscuro'}
+          <NavLink to="/ajustes" title="Ajustes" className="flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800">
+            <Settings size={14} /> Ajustes
+          </NavLink>
+          <button onClick={toggle} title={dark ? 'Modo claro' : 'Modo oscuro'} className="rounded-md px-2 py-1.5 text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800">
+            {dark ? <Sun size={14} /> : <Moon size={14} />}
           </button>
-          <button onClick={() => supabase.auth.signOut()} className="flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800">
-            <LogOut size={14} /> Salir
+          <button onClick={() => supabase.auth.signOut()} title="Cerrar sesión" className="rounded-md px-2 py-1.5 text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800">
+            <LogOut size={14} />
           </button>
         </div>
       </div>
@@ -90,7 +151,7 @@ export default function Layout() {
       {menuOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setMenuOpen(false)} />
-          <div className="relative h-full">{sidebar}</div>
+          <div className="relative h-full w-64">{sidebar}</div>
         </div>
       )}
       <div className="flex min-w-0 flex-1 flex-col">
@@ -109,5 +170,30 @@ export default function Layout() {
       </div>
       {searchOpen && <SearchDialog onClose={() => setSearchOpen(false)} />}
     </div>
+  )
+}
+
+function Heading({ children }: { children: ReactNode }) {
+  return <p className="px-2 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{children}</p>
+}
+
+function Item({ to, icon, children, badge, end, title }: { to: string; icon: ReactNode; children: ReactNode; badge?: number; end?: boolean; title?: string }) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      title={title}
+      className={({ isActive }) =>
+        `flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm ${
+          isActive
+            ? 'bg-white font-medium shadow-sm dark:bg-slate-800'
+            : 'text-slate-600 hover:bg-slate-200/60 dark:text-slate-300 dark:hover:bg-slate-800/60'
+        }`
+      }
+    >
+      <span className="grid w-4 shrink-0 place-items-center text-slate-400">{icon}</span>
+      <span className="min-w-0 flex-1 truncate">{children}</span>
+      {!!badge && <span className="rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white">{badge}</span>}
+    </NavLink>
   )
 }

@@ -130,6 +130,8 @@ function translate(msg: string): string {
   if (/email not confirmed/i.test(msg)) return 'Tienes que confirmar tu email antes de entrar (revisa tu correo).'
   if (/already registered/i.test(msg)) return 'Ya existe una cuenta con ese email.'
   if (/password should be at least/i.test(msg)) return 'La contraseña debe tener al menos 6 caracteres.'
-  if (/rate limit/i.test(msg)) return 'Demasiados intentos. Espera un poco y vuelve a probar.'
+  if (/email rate limit/i.test(msg))
+    return 'Supabase ha llegado a su límite de emails de confirmación por hora (es un límite de todo el proyecto, no tuyo). Pide al administrador que desactive «Confirm email» en Supabase o espera una hora.'
+  if (/rate limit|too many/i.test(msg)) return 'Demasiados intentos seguidos desde esta conexión. Espera un par de minutos y vuelve a probar.'
   return msg
 }

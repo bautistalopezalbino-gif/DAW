@@ -1,55 +1,99 @@
-import { ArrowDown, ArrowUp, ChevronRight, FileText, Pencil, Pin, Plus, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronRight, FileText, Pencil, Pin, Plus, Trash2, Users } from 'lucide-react'
 import { useEffect, useState, type CSSProperties } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import ErrorBanner from '../components/ErrorBanner'
+import NewNoteMenu from '../components/NewNoteMenu'
 import NoteEditor from '../components/NoteEditor'
+import ShareDialog from '../components/ShareDialog'
+import { TagChip } from '../components/ui'
 import { getNotebook } from '../data/notebooks'
+import type { Template } from '../data/templates'
 import {
-  createNote, createSection, deleteSection, listNotes, listSections, moveSection, renameSection,
-  type NoteSummary, type Section,
+  createNote, createSection, deleteSection, listNotes, listSections, moveSection, notebookBase, renameSection,
+  type NoteSummary, type Role, type Section,
 } from '../lib/api'
+import { useAuth } from '../lib/auth'
+import { docToText } from '../lib/docExport'
 import { timeAgo } from '../lib/format'
+import { sharedWithMe } from '../lib/shares'
+import { removeNoteFiles } from '../lib/storage'
+import { tagColor } from '../lib/tags'
 
 export default function NotebookPage() {
-  const { slug, sectionId, noteId } = useParams()
+  const { ownerId: ownerParam, slug, sectionId, noteId } = useParams()
+  const { session } = useAuth()
+  const myId = session!.user.id
+  const myEmail = session!.user.email ?? ''
+  const ownerId = ownerParam ?? myId
+  const isMine = ownerId === myId
   const notebook = getNotebook(slug)
   const navigate = useNavigate()
+  const [role, setRole] = useState<Role | null | undefined>(isMine ? 'owner' : undefined)
+  const [ownerEmail, setOwnerEmail] = useState<string | null>(null)
   const [sections, setSections] = useState<Section[] | null>(null)
   const [notes, setNotes] = useState<NoteSummary[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [sharing, setSharing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const fail = (e: Error) => setError(e.message)
 
+  // Rol en el cuaderno: propio o compartido conmigo
   useEffect(() => {
     if (!notebook) return
+    if (isMine) {
+      setRole('owner')
+      setOwnerEmail(null)
+      return
+    }
+    setRole(undefined)
+    sharedWithMe(myEmail)
+      .then((shares) => {
+        const s = shares.find((x) => x.owner_id === ownerId && x.notebook === notebook.slug)
+        setRole(s?.role ?? null)
+        setOwnerEmail(s?.owner_email ?? null)
+      })
+      .catch(fail)
+  }, [notebook, isMine, ownerId, myEmail])
+
+  useEffect(() => {
+    if (!notebook || !role) return
     setSections(null)
     setError(null)
-    listSections(notebook.slug).then(setSections).catch(fail)
-  }, [notebook])
+    listSections(notebook.slug, ownerId).then(setSections).catch(fail)
+  }, [notebook, ownerId, role])
+
+  const base = notebook ? notebookBase(notebook.slug, ownerId, myId) : '/'
 
   // Si no hay tema elegido, abre el primero
   useEffect(() => {
-    if (sections && sections.length > 0 && !sectionId) {
-      navigate(`/c/${slug}/${sections[0].id}`, { replace: true })
-    }
-  }, [sections, sectionId, slug, navigate])
+    if (sections && sections.length > 0 && !sectionId) navigate(`${base}/${sections[0].id}`, { replace: true })
+  }, [sections, sectionId, base, navigate])
 
   useEffect(() => {
     setNotes([])
-    if (sectionId) listNotes(sectionId).then(setNotes).catch(fail)
-  }, [sectionId])
+    if (sectionId && role) listNotes(sectionId).then(setNotes).catch(fail)
+  }, [sectionId, role])
 
   if (!notebook) return <Navigate to="/" replace />
+  if (role === null) {
+    return (
+      <div className="m-auto max-w-sm p-8 text-center text-sm text-slate-500">
+        <p className="font-medium text-slate-700 dark:text-slate-300">No tienes acceso a este cuaderno.</p>
+        <p className="mt-1">Puede que te hayan quitado el acceso. Pide a su propietario que te invite de nuevo.</p>
+        <Link to="/" className="mt-4 inline-block text-blue-700 hover:underline dark:text-blue-400">Volver al inicio</Link>
+      </div>
+    )
+  }
 
-  const base = `/c/${notebook.slug}`
+  const canWrite = role === 'owner' || role === 'editor'
   const current = sections?.find((s) => s.id === sectionId)
 
   async function addSection() {
     if (!notebook || !sections) return
     const position = sections.reduce((m, s) => Math.max(m, s.position), -1) + 1
     try {
-      const s = await createSection(notebook.slug, `Tema ${sections.length + 1}`, position)
+      const s = await createSection(notebook.slug, ownerId, `Tema ${sections.length + 1}`, position)
       setSections([...sections, s])
       setEditingId(s.id)
       navigate(`${base}/${s.id}`)
@@ -84,6 +128,10 @@ export default function NotebookPage() {
   async function removeSection(s: Section) {
     if (!window.confirm(`¿Borrar el tema «${s.title}» y todos sus apuntes? No se puede deshacer.`)) return
     try {
+      const inside = await listNotes(s.id)
+      await Promise.all(
+        inside.map((n) => removeNoteFiles({ ownerId, notebook: notebook!.slug, noteId: n.id }).catch(() => {})),
+      )
       await deleteSection(s.id)
       const rest = sections!.filter((x) => x.id !== s.id)
       setSections(rest)
@@ -93,10 +141,11 @@ export default function NotebookPage() {
     }
   }
 
-  async function addNote() {
+  async function addNote(template: Template | null) {
     if (!sectionId) return
     try {
-      const n = await createNote(sectionId)
+      const init = template ? { title: template.title(), content: template.content() } : {}
+      const n = await createNote(sectionId, init.content ? { ...init, content_text: docToText(init.content) } : init)
       setNotes((list) => [n, ...list])
       navigate(`${base}/${sectionId}/${n.id}`)
     } catch (e) {
@@ -124,17 +173,35 @@ export default function NotebookPage() {
         className={`${noteId ? 'hidden md:flex' : 'flex'} w-full shrink-0 flex-col border-r border-slate-200 md:w-72 dark:border-slate-800`}
       >
         <div className="border-b border-slate-200 px-4 py-4 dark:border-slate-800" style={{ borderTop: `4px solid ${notebook.color}` }}>
-          <p className="text-xs font-bold tracking-widest" style={{ color: notebook.color }}>{notebook.code}</p>
-          <h1 className="text-lg font-bold leading-tight">{notebook.name}</h1>
+          <div className="flex items-start gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold tracking-widest" style={{ color: notebook.color }}>{notebook.code}</p>
+              <h1 className="text-lg font-bold leading-tight">{notebook.name}</h1>
+            </div>
+            {isMine && (
+              <button
+                onClick={() => setSharing(true)}
+                title="Compartir cuaderno"
+                className="flex shrink-0 items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                <Users size={14} /> Compartir
+              </button>
+            )}
+          </div>
+          {!isMine && (
+            <p className="mt-1.5 flex items-center gap-1 text-xs text-slate-500">
+              <Users size={12} /> De {ownerEmail ?? '…'} · {role === 'lector' ? 'solo lectura' : 'puedes editar'}
+            </p>
+          )}
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-2">
           <ErrorBanner error={error} />
-          {sections === null && !error && <p className="p-2 text-sm text-slate-500">Cargando…</p>}
+          {(sections === null || role === undefined) && !error && <p className="p-2 text-sm text-slate-500">Cargando…</p>}
           {sections?.length === 0 && (
             <div className="p-4 text-center text-sm text-slate-500">
               <p>Este cuaderno aún no tiene temas.</p>
-              <p className="mt-1">Crea uno por cada unidad didáctica.</p>
+              {canWrite && <p className="mt-1">Crea uno por cada unidad didáctica.</p>}
             </div>
           )}
 
@@ -162,14 +229,14 @@ export default function NotebookPage() {
                   ) : (
                     <Link
                       to={`${base}/${s.id}`}
-                      onDoubleClick={() => setEditingId(s.id)}
+                      onDoubleClick={() => canWrite && setEditingId(s.id)}
                       className="flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1.5 text-sm font-medium"
                     >
                       <ChevronRight size={14} className={`shrink-0 text-slate-400 transition ${active ? 'rotate-90' : ''}`} />
                       <span className="truncate">{s.title}</span>
                     </Link>
                   )}
-                  {editingId !== s.id && (
+                  {editingId !== s.id && canWrite && (
                     <div className={`${active ? 'flex' : 'hidden group-hover:flex'} shrink-0 items-center text-slate-400`}>
                       <IconBtn title="Renombrar" onClick={() => setEditingId(s.id)}><Pencil size={13} /></IconBtn>
                       <IconBtn title="Subir" onClick={() => move(i, -1)}><ArrowUp size={13} /></IconBtn>
@@ -198,16 +265,15 @@ export default function NotebookPage() {
                         )}
                         <span className="min-w-0 flex-1">
                           <span className="block truncate">{n.title || 'Sin título'}</span>
-                          <span className="block text-xs text-slate-400">{timeAgo(n.updated_at)}</span>
+                          <span className="flex flex-wrap items-center gap-1 text-xs text-slate-400">
+                            {timeAgo(n.updated_at)}
+                            {n.tags?.slice(0, 2).map((t) => <TagChip key={t} tag={t} color={tagColor(t)} />)}
+                          </span>
                         </span>
                       </Link>
                     ))}
-                    <button
-                      onClick={addNote}
-                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-900"
-                    >
-                      <Plus size={14} /> Nuevo apunte
-                    </button>
+                    {canWrite && <NewNoteMenu notebook={notebook} onCreate={addNote} />}
+                    {!canWrite && notes.length === 0 && <p className="px-2 py-1.5 text-xs text-slate-400">Sin apuntes</p>}
                   </div>
                 )}
               </div>
@@ -215,25 +281,29 @@ export default function NotebookPage() {
           })}
         </div>
 
-        <div className="border-t border-slate-200 p-2 dark:border-slate-800">
-          <button
-            onClick={addSection}
-            disabled={sections === null}
-            className="flex w-full items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
-            style={{ background: notebook.color }}
-          >
-            <Plus size={16} /> Nuevo tema
-          </button>
-        </div>
+        {canWrite && (
+          <div className="border-t border-slate-200 p-2 dark:border-slate-800">
+            <button
+              onClick={addSection}
+              disabled={sections === null}
+              className="flex w-full items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+              style={{ background: notebook.color }}
+            >
+              <Plus size={16} /> Nuevo tema
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Editor */}
       <div className={`${noteId ? 'flex' : 'hidden md:flex'} min-w-0 flex-1`}>
-        {noteId ? (
+        {noteId && role ? (
           <NoteEditor
             key={noteId}
             noteId={noteId}
             notebook={notebook}
+            ownerId={ownerId}
+            role={role}
             sectionTitle={current?.title}
             onSaved={onNoteSaved}
             onDeleted={onNoteDeleted}
@@ -244,17 +314,17 @@ export default function NotebookPage() {
             <FileText size={40} className="mx-auto mb-3 text-slate-300 dark:text-slate-700" />
             {current ? (
               <>
-                <p>Elige un apunte de «{current.title}» o crea uno nuevo.</p>
-                <button onClick={addNote} className="mt-4 rounded-md px-4 py-2 font-medium text-white" style={{ background: notebook.color }}>
-                  Nuevo apunte
-                </button>
+                <p>{canWrite ? `Elige un apunte de «${current.title}» o crea uno nuevo.` : `Elige un apunte de «${current.title}».`}</p>
+                {canWrite && <NewNoteMenu notebook={notebook} onCreate={addNote} variant="button" />}
               </>
             ) : (
-              <p>Crea un tema para empezar a escribir en este cuaderno.</p>
+              <p>{canWrite ? 'Crea un tema para empezar a escribir en este cuaderno.' : 'Este cuaderno todavía no tiene temas.'}</p>
             )}
           </div>
         )}
       </div>
+
+      {sharing && <ShareDialog notebook={notebook} myId={myId} myEmail={myEmail} onClose={() => setSharing(false)} />}
     </div>
   )
 }

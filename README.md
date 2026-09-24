@@ -8,26 +8,35 @@ El plan completo está en [`docs/plan-plataforma-daw.pdf`](docs/plan-plataforma-
 
 ## Qué puedes hacer
 
-- Iniciar sesión con email y contraseña (Supabase Auth).
-- 7 cuadernos: Sistemas Informáticos, Programación, Entornos de Desarrollo, Bases de Datos,
-  Lenguajes de Marcas y SGI, Inglés y Proyecto Intermodular.
-- Crear, renombrar, ordenar y borrar temas; crear, fijar y borrar apuntes.
-- Escribir con títulos, negrita, cursiva, subrayado, resaltado, enlaces, listas, listas de
-  tareas, citas, tablas y **bloques de código con resaltado** (Java, SQL, HTML/XML, CSS,
-  JavaScript, Bash, PowerShell…). Atajos Markdown: `#`, `-`, `1.`, `[ ]`, `>`, ```` ```java ````.
-- Guardado automático (y `Ctrl+S`).
-- Buscador en todos los cuadernos (`Ctrl+K`).
-- Modo claro/oscuro y diseño adaptado a móvil.
+- **7 cuadernos** (Sistemas Informáticos, Programación, Entornos de Desarrollo, Bases de Datos,
+  Lenguajes de Marcas y SGI, Inglés y Proyecto Intermodular), cada uno dividido en temas.
+- **Editor** con títulos, listas, tareas, tablas, enlaces y **bloques de código con resaltado**
+  (Java, SQL, HTML/XML, CSS, Bash, PowerShell…). Atajos Markdown: `#`, `-`, `[ ]`, ```` ```java ````.
+- **Imágenes y archivos**: pega capturas con Ctrl+V, arrástralas o súbelas; adjunta PDF (con vista previa).
+- **Dibujo a mano** (ratón, lápiz o dedo) para esquemas, diagramas E/R o UML.
+- **Plantillas** por cuaderno: ejercicio resuelto, consulta SQL, modelo E/R, vocabulario, diario del proyecto…
+- **Etiquetas** (#examen, #duda…) con filtro por etiqueta.
+- **Compartir cuadernos por email** (editor o lector) y **edición en tiempo real**: varias personas
+  escriben a la vez en el mismo apunte y se ven los cursores de los demás.
+- **Tarjetas de repaso** con repetición espaciada (se crean también desde un apunte).
+- **Calendario** de exámenes y entregas, con los próximos en la página de inicio.
+- **Exportar**: apunte a Markdown, apunte o tema a PDF (imprimir), cuaderno entero a Markdown y
+  copia de seguridad JSON (importable).
+- Guardado automático, buscador global (`Ctrl+K`), modo oscuro y versión móvil.
 
 ## Tecnologías
 
-React + TypeScript + Vite · Tailwind CSS · TipTap · Supabase (PostgreSQL + Auth) · Vercel.
+React + TypeScript + Vite · Tailwind CSS · TipTap + Yjs · Supabase (PostgreSQL, Auth, Storage,
+Realtime) · Vercel.
+
+La seguridad está en la base de datos (políticas RLS): cada cuaderno solo lo ven su propietario y las
+personas invitadas; los lectores no pueden modificar nada, tampoco archivos ni cambios en tiempo real.
 
 ## Puesta en marcha
 
-1. **Crear las tablas (solo una vez):** en Supabase → *SQL Editor* → *New query*, pega el
-   contenido de [`supabase/migrations/001_esquema_inicial.sql`](supabase/migrations/001_esquema_inicial.sql)
-   y pulsa *Run*.
+1. **Base de datos (una vez, en orden):** en Supabase → *SQL Editor* → *New query*, pega y ejecuta
+   (*Run*) cada archivo de [`supabase/migrations/`](supabase/migrations/):
+   `001_esquema_inicial.sql` y `002_compartir_etiquetas_tarjetas_calendario.sql`.
 2. **Instalar y arrancar en local:**
    ```bash
    npm install
