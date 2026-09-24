@@ -20,6 +20,7 @@ import { TAGS_CHANGED } from '../lib/tags'
 import AiMenu from './assistant/AiMenu'
 import { useAssistant } from './assistant/AssistantProvider'
 import CardDialog from './CardDialog'
+import SaveAsDialog from './SaveAsDialog'
 import Presence from './Presence'
 import TagBar from './TagBar'
 import Toolbar from './Toolbar'
@@ -95,6 +96,7 @@ function EditorInner({
   const [status, setStatus] = useState<Status>('saved')
   const [uploading, setUploading] = useState(0)
   const [cardText, setCardText] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
   const pending = useRef<Pending>({})
   const timer = useRef<number | undefined>(undefined)
   const chain = useRef<Promise<void>>(Promise.resolve())
@@ -354,7 +356,7 @@ function EditorInner({
             {pinned ? <PinOff size={16} /> : <Pin size={16} />}
           </button>
         )}
-        <button onClick={() => void print()} title="Exportar este apunte a PDF" className="rounded p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
+        <button onClick={() => void flush().then(() => setSaving(true))} title="Guardar como PDF, Word…" className="rounded p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
           <FileDown size={16} />
         </button>
         <Menu
@@ -417,6 +419,7 @@ function EditorInner({
         </div>
       </div>
 
+      {saving && <SaveAsDialog notebook={notebook} scope={{ kind: 'apunte', noteId: note.id, title }} onClose={() => setSaving(false)} />}
       {cardText !== null && (
         <CardDialog
           defaults={{ notebook: notebook.slug, front: cardText, note_id: note.id }}

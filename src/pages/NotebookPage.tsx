@@ -3,7 +3,7 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useAssistant } from '../components/assistant/AssistantProvider'
 import ErrorBanner from '../components/ErrorBanner'
-import ExportPdfDialog from '../components/ExportPdfDialog'
+import SaveAsDialog from '../components/SaveAsDialog'
 import NewNoteMenu from '../components/NewNoteMenu'
 import NoteEditor from '../components/NoteEditor'
 import ShareDialog from '../components/ShareDialog'
@@ -37,7 +37,7 @@ export default function NotebookPage() {
   const [notes, setNotes] = useState<NoteSummary[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [sharing, setSharing] = useState(false)
-  const [exporting, setExporting] = useState(false)
+  const [exporting, setExporting] = useState<string[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const fail = (e: Error) => setError(e.message)
@@ -200,12 +200,12 @@ export default function NotebookPage() {
               <h1 className="text-lg font-bold leading-tight">{notebook.name}</h1>
             </div>
             <button
-              onClick={() => setExporting(true)}
+              onClick={() => setExporting(sections!.map((x) => x.id))}
               disabled={!sections?.length}
-              title="Exportar temas a PDF"
+              title="Guardar como PDF, Word…"
               className="flex shrink-0 items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
             >
-              <FileDown size={14} /> PDF
+              <FileDown size={14} /> Guardar
             </button>
             {isMine && (
               <button
@@ -267,7 +267,7 @@ export default function NotebookPage() {
                   )}
                   {editingId !== s.id && (
                     <div className={`${active ? 'flex' : 'hidden group-hover:flex'} shrink-0 items-center text-slate-400`}>
-                      <IconBtn title="Exportar este tema a PDF" onClick={() => void window.open(`/imprimir/tema/${s.id}`, '_blank')}>
+                      <IconBtn title="Guardar este tema como…" onClick={() => setExporting([s.id])}>
                         <FileDown size={13} />
                       </IconBtn>
                       <Menu
@@ -375,7 +375,9 @@ export default function NotebookPage() {
         )}
       </div>
 
-      {exporting && sections && <ExportPdfDialog notebook={notebook} sections={sections} onClose={() => setExporting(false)} />}
+      {exporting && sections && (
+        <SaveAsDialog notebook={notebook} scope={{ kind: 'temas', sections, preselected: exporting }} onClose={() => setExporting(null)} />
+      )}
       {sharing && <ShareDialog notebook={notebook} myId={myId} myEmail={myEmail} onClose={() => setSharing(false)} />}
     </div>
   )
