@@ -15,6 +15,16 @@ body { @apply bg-white text-slate-900 antialiased dark:bg-slate-950 dark:text-sl
 .tiptap { outline: none; min-height: 60vh; }
 .tiptap > * + * { margin-top: 0.6em; }
 
+/* Renglones juntos, como en un cuaderno: cada Enter es una línea nueva sin hueco grande */
+.tiptap { line-height: 1.5; }
+.tiptap p { margin-top: 0; margin-bottom: 0; }
+.tiptap > p + p { margin-top: 0.1em; }
+.tiptap li { margin-top: 0.1em; margin-bottom: 0.1em; }
+.tiptap li > p { margin: 0; }
+.tiptap ul, .tiptap ol { margin-top: 0.3em; margin-bottom: 0.3em; }
+.tiptap h1, .tiptap h2, .tiptap h3 { margin-bottom: 0.3em; }
+.tiptap > h1:not(:first-child), .tiptap > h2:not(:first-child), .tiptap > h3:not(:first-child) { margin-top: 1em; }
+
 .tiptap p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
