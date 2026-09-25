@@ -2,8 +2,10 @@ import { Check, Copy, ExternalLink } from 'lucide-react'
 import { useState } from 'react'
 import sql001 from '../../supabase/migrations/001_esquema_inicial.sql?raw'
 import sql002 from '../../supabase/migrations/002_compartir_etiquetas_tarjetas_calendario.sql?raw'
+import sql003 from '../../supabase/migrations/003_papelera.sql?raw'
 
 const MIGRATION_002 = /notebook_shares|flashcards|events|user_tags|notebook_role|column notes\.(tags|ydoc)|tags does not exist|ydoc|Bucket not found/i
+const MIGRATION_003 = /deleted_at/i
 const SQL_EDITOR = 'https://supabase.com/dashboard/project/blddhijulwlzvvtwzzlo/sql/new'
 
 // El editor de Supabase puede cortar textos largos al pegar: se copia por partes (marcadas con «@parte»)
@@ -18,9 +20,10 @@ export default function ErrorBanner({ error }: { error: string | null }) {
   const [copied, setCopied] = useState<Set<number>>(new Set())
   const [last, setLast] = useState<number | null>(null)
   if (!error) return null
-  const needs002 = MIGRATION_002.test(error)
-  const missing = needs002 || /schema cache|does not exist|Could not find the function/i.test(error)
-  const parts = splitParts(needs002 ? sql002 : sql001)
+  const needs003 = MIGRATION_003.test(error)
+  const needs002 = !needs003 && MIGRATION_002.test(error)
+  const missing = needs003 || needs002 || /schema cache|does not exist|Could not find the function/i.test(error)
+  const parts = splitParts(needs003 ? sql003 : needs002 ? sql002 : sql001)
 
   async function copy(i: number) {
     await navigator.clipboard.writeText(parts[i] + '\n')
@@ -32,7 +35,7 @@ export default function ErrorBanner({ error }: { error: string | null }) {
     <div className="m-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
       {missing ? (
         <>
-          <p className="font-semibold">Falta actualizar la base de datos en Supabase</p>
+          <p className="font-semibold">Falta actualizar la base de datos en Supabase{needs003 && ' (para la papelera)'}</p>
           <ol className="mt-2 list-decimal space-y-1 pl-5">
             <li>
               Pulsa <b>Abrir el SQL Editor</b> (se abre en otra pestaña).

@@ -12,7 +12,7 @@ import { Menu, MenuItem, TagChip } from '../components/ui'
 import { getNotebook } from '../data/notebooks'
 import type { Template } from '../data/templates'
 import {
-  createNote, createSection, deleteNote, deleteSection, listNotes, listSections, moveSection, notebookBase, renameSection,
+  createNote, createSection, listNotes, listSections, restoreNote, restoreSection, trashNote, trashSection, moveSection, notebookBase, renameSection,
   type NoteSummary, type Role, type Section,
 } from '../lib/api'
 import { sectionSegments, summarySegments } from '../lib/audioSources'
@@ -22,7 +22,6 @@ import { docToText } from '../lib/docExport'
 import { timeAgo } from '../lib/format'
 import { sharedWithMe } from '../lib/shares'
 import { sectionSource } from '../lib/studySource'
-import { removeNoteFiles } from '../lib/storage'
 import { tagColor } from '../lib/tags'
 
 export default function NotebookPage() {
@@ -135,29 +134,49 @@ export default function NotebookPage() {
     await moveSection({ ...a, position: pa }, { ...b, position: pb }).catch(fail)
   }
 
+  // Aviso «Enviado a la papelera · Deshacer»
+  const [undo, setUndo] = useState<{ text: string; run: () => Promise<void> } | null>(null)
+  useEffect(() => {
+    if (!undo) return
+    const t = window.setTimeout(() => setUndo(null), 7000)
+    return () => window.clearTimeout(t)
+  }, [undo])
+
+  function trashedNote(n: Pick<NoteSummary, 'id' | 'title'>) {
+    setUndo({
+      text: `«${n.title || 'Sin título'}» enviado a la papelera`,
+      run: async () => {
+        await restoreNote(n.id)
+        if (sectionId) setNotes(await listNotes(sectionId))
+      },
+    })
+  }
+
   async function removeNote(n: NoteSummary) {
-    if (!window.confirm(`¿Borrar el apunte «${n.title || 'Sin título'}»? No se puede deshacer.`)) return
     try {
       if (n.id === noteId) navigate(`${base}/${sectionId}`)
-      await removeNoteFiles({ ownerId, notebook: notebook!.slug, noteId: n.id }).catch(() => {})
-      await deleteNote(n.id)
+      await trashNote(n.id)
       setNotes((list) => list.filter((x) => x.id !== n.id))
+      trashedNote(n)
     } catch (e) {
       fail(e as Error)
     }
   }
 
   async function removeSection(s: Section) {
-    if (!window.confirm(`¿Borrar el tema «${s.title}» y todos sus apuntes? No se puede deshacer.`)) return
+    if (!window.confirm(`¿Enviar el tema «${s.title}» y sus apuntes a la papelera? Podrás recuperarlo durante 30 días.`)) return
     try {
-      const inside = await listNotes(s.id)
-      await Promise.all(
-        inside.map((n) => removeNoteFiles({ ownerId, notebook: notebook!.slug, noteId: n.id }).catch(() => {})),
-      )
-      await deleteSection(s.id)
+      await trashSection(s.id)
       const rest = sections!.filter((x) => x.id !== s.id)
       setSections(rest)
       navigate(rest[0] ? `${base}/${rest[0].id}` : base)
+      setUndo({
+        text: `Tema «${s.title}» enviado a la papelera`,
+        run: async () => {
+          await restoreSection(s.id)
+          setSections(await listSections(notebook!.slug, ownerId))
+        },
+      })
     } catch (e) {
       fail(e as Error)
     }
@@ -210,6 +229,8 @@ export default function NotebookPage() {
   }
 
   function onNoteDeleted(id: string) {
+    const n = notes.find((x) => x.id === id)
+    if (n) trashedNote(n)
     setNotes((list) => list.filter((n) => n.id !== id))
     navigate(`${base}/${sectionId}`)
   }
@@ -332,7 +353,7 @@ export default function NotebookPage() {
                       <IconBtn title="Renombrar" onClick={() => setEditingId(s.id)}><Pencil size={13} /></IconBtn>
                       <IconBtn title="Subir" onClick={() => move(i, -1)}><ArrowUp size={13} /></IconBtn>
                       <IconBtn title="Bajar" onClick={() => move(i, 1)}><ArrowDown size={13} /></IconBtn>
-                      <IconBtn title="Borrar tema" onClick={() => removeSection(s)}><Trash2 size={13} /></IconBtn>
+                      <IconBtn title="Enviar el tema a la papelera" onClick={() => removeSection(s)}><Trash2 size={13} /></IconBtn>
                     </div>
                   )}
                 </div>
@@ -363,8 +384,8 @@ export default function NotebookPage() {
                         </span>
                         {canWrite && (
                           <button
-                            title="Borrar apunte"
-                            aria-label={`Borrar apunte ${n.title || 'Sin título'}`}
+                            title="Enviar a la papelera"
+                            aria-label={`Enviar a la papelera ${n.title || 'Sin título'}`}
                             onClick={(e) => {
                               e.preventDefault()
                               e.stopPropagation()
@@ -435,6 +456,23 @@ export default function NotebookPage() {
         <SaveAsDialog notebook={notebook} scope={{ kind: 'temas', sections, preselected: exporting }} onClose={() => setExporting(null)} />
       )}
       {sharing && <ShareDialog notebook={notebook} myId={myId} myEmail={myEmail} onClose={() => setSharing(false)} />}
+      {undo && (
+        <div role="status" className="fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-lg bg-slate-900 px-4 py-2.5 text-sm text-white shadow-xl dark:bg-slate-100 dark:text-slate-900">
+          <Trash2 size={15} className="shrink-0 opacity-70" />
+          <span className="max-w-[60vw] truncate">{undo.text}</span>
+          <button
+            onClick={() => {
+              const u = undo
+              setUndo(null)
+              u.run().catch(fail)
+            }}
+            className="font-semibold text-violet-300 hover:underline dark:text-violet-700"
+          >
+            Deshacer
+          </button>
+          <Link to="/papelera" className="text-slate-300 hover:underline dark:text-slate-600">Ver papelera</Link>
+        </div>
+      )}
     </div>
   )
 }

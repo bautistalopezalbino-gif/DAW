@@ -32,11 +32,12 @@ export interface Backup {
 /** Copia de seguridad de todo lo que es mío (no incluye cuadernos que me han compartido). */
 export async function exportBackup(myId: string): Promise<Backup> {
   const [sections, notes, flashcards, events] = await Promise.all([
-    supabase.from('sections').select('id, notebook, title, position').eq('user_id', myId).order('position'),
+    supabase.from('sections').select('id, notebook, title, position').eq('user_id', myId).is('deleted_at', null).order('position'),
     supabase
       .from('notes')
       .select('id, section_id, title, content, content_text, pinned, tags, created_at, updated_at')
       .eq('user_id', myId)
+      .is('deleted_at', null)
       .order('created_at'),
     supabase.from('flashcards').select('note_id, notebook, front, back, box, due_at').order('created_at'),
     supabase.from('events').select('notebook, title, kind, date, details, done').order('date'),
@@ -90,12 +91,12 @@ export async function importBackup(data: Backup, myId: string) {
 /** Un cuaderno entero en un único archivo Markdown (temas como ## y apuntes como ###). */
 export async function notebookMarkdown(notebook: NotebookSlug, name: string, ownerId: string): Promise<string> {
   const sections = check(
-    await supabase.from('sections').select('id, title').eq('notebook', notebook).eq('user_id', ownerId).order('position'),
+    await supabase.from('sections').select('id, title').eq('notebook', notebook).eq('user_id', ownerId).is('deleted_at', null).order('position'),
   ) as { id: string; title: string }[]
   const ids = sections.map((s) => s.id)
   const notes = ids.length
     ? (check(
-        await supabase.from('notes').select('section_id, title, content, tags').in('section_id', ids).order('created_at'),
+        await supabase.from('notes').select('section_id, title, content, tags').in('section_id', ids).is('deleted_at', null).order('created_at'),
       ) as { section_id: string; title: string; content: JSONContent | null; tags: string[] }[])
     : []
   const urls = await resolveUrls(notes.map((n) => n.content), 7 * 24 * 3600)

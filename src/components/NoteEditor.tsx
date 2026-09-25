@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Y from 'yjs'
 import type { Notebook } from '../data/notebooks'
 import {
-  deleteNote, getNote, getNoteYdoc, updateNote, type Note, type NotePatch, type NoteSummary, type Role,
+  getNote, getNoteYdoc, trashNote, updateNote, type Note, type NotePatch, type NoteSummary, type Role,
 } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { createNoteDoc, DB_ORIGIN, FIELD, fromBase64, SupabaseProvider, toBase64, userFor } from '../lib/collab'
@@ -16,7 +16,7 @@ import { docToMarkdown, docToText, resolveUrls } from '../lib/docExport'
 import { downloadFile, slugify } from '../lib/download'
 import { createEditorExtensions } from '../lib/editorExtensions'
 import { usePanelsHidden } from '../lib/focusMode'
-import { removeNoteFiles, uploadFile, type NoteLocation } from '../lib/storage'
+import { uploadFile, type NoteLocation } from '../lib/storage'
 import { TAGS_CHANGED } from '../lib/tags'
 import AiMenu from './assistant/AiMenu'
 import { ListenMenu, SpeakBubble, SpeechFollower } from './audio/NoteAudio'
@@ -281,11 +281,8 @@ function EditorInner({
   }, [flush])
 
   async function remove() {
-    if (!window.confirm(`¿Borrar el apunte «${title || 'Sin título'}»? No se puede deshacer.`)) return
-    pending.current = {}
-    window.clearTimeout(timer.current)
-    await removeNoteFiles(loc).catch(() => {})
-    await deleteNote(note.id)
+    await flush()
+    await trashNote(note.id)
     onDeleted(note.id)
   }
 
@@ -393,7 +390,7 @@ function EditorInner({
               </div>
               {canWrite && (
                 <MenuItem icon={<Trash2 size={15} />} danger onClick={() => (close(), void remove())}>
-                  Borrar apunte
+                  Enviar a la papelera
                 </MenuItem>
               )}
             </>

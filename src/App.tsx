@@ -11,6 +11,7 @@ const PrintPage = lazy(() => import('./pages/PrintPage'))
 const ReviewPage = lazy(() => import('./pages/ReviewPage'))
 const CalendarPage = lazy(() => import('./pages/CalendarPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const TrashPage = lazy(() => import('./pages/TrashPage'))
 const TagPage = lazy(() => import('./pages/TagPage'))
 
 const lazyPage = (page: ReactNode) => (
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="calendario" element={lazyPage(<CalendarPage />)} />
         <Route path="etiqueta/:tag?" element={lazyPage(<TagPage />)} />
         <Route path="ajustes" element={lazyPage(<SettingsPage />)} />
+        <Route path="papelera" element={lazyPage(<TrashPage />)} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -1,4 +1,4 @@
-import { CalendarDays, Home, Layers, LogOut, Menu, Moon, PanelLeftOpen, Search, Settings, Sparkles, Sun, Users, X } from 'lucide-react'
+import { CalendarDays, Home, Layers, LogOut, Menu, Moon, PanelLeftOpen, Search, Settings, Sparkles, Sun, Trash2, Users, X } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { getNotebook, NOTEBOOKS } from '../data/notebooks'
@@ -114,6 +114,7 @@ function Shell() {
         <Item to="/" end icon={<Home size={15} />}>Inicio</Item>
         <Item to="/repaso" icon={<Layers size={15} />} badge={due}>Repaso</Item>
         <Item to="/calendario" icon={<CalendarDays size={15} />}>Calendario</Item>
+        <Item to="/papelera" icon={<Trash2 size={15} />}>Papelera</Item>
 
         <CollapsibleHeading collapsed={mineCollapsed} onToggle={toggleMine} count={NOTEBOOKS.length}>
           Mis cuadernos

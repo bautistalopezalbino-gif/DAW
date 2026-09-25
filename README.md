@@ -31,6 +31,7 @@ El plan completo está en [`docs/plan-plataforma-daw.pdf`](docs/plan-plataforma-
 - **Asistente IA (Gemini)** en toda la web (`Ctrl+J`): dudas, explicaciones, resúmenes, mejorar o
   traducir texto, ejercicios, tarjetas y tests generados desde tus apuntes, planes de estudio y
   preguntas que buscan en todos tus apuntes. Las respuestas se pueden insertar en el apunte.
+- **Papelera**: los apuntes y temas borrados se pueden recuperar durante 30 días (con «Deshacer» al momento).
 - Guardado automático, buscador global (`Ctrl+K`), modo oscuro y versión móvil.
 
 ## Tecnologías
@@ -45,7 +46,7 @@ personas invitadas; los lectores no pueden modificar nada, tampoco archivos ni c
 
 1. **Base de datos (una vez, en orden):** en Supabase → *SQL Editor* → *New query*, pega y ejecuta
    (*Run*) cada archivo de [`supabase/migrations/`](supabase/migrations/):
-   `001_esquema_inicial.sql` y `002_compartir_etiquetas_tarjetas_calendario.sql`. Si el editor corta
+   `001_esquema_inicial.sql`, `002_compartir_etiquetas_tarjetas_calendario.sql` y `003_papelera.sql`. Si el editor corta
    el texto al pegar, ejecuta el 002 por partes (marcadas con `-- @parte N`), en orden; la propia web
    ofrece un botón para copiar cada parte cuando detecta que falta.
 2. **Instalar y arrancar en local:**
