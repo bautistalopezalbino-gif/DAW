@@ -12,7 +12,7 @@ import { Menu, MenuItem, TagChip } from '../components/ui'
 import { getNotebook } from '../data/notebooks'
 import type { Template } from '../data/templates'
 import {
-  createNote, createSection, deleteSection, listNotes, listSections, moveSection, notebookBase, renameSection,
+  createNote, createSection, deleteNote, deleteSection, listNotes, listSections, moveSection, notebookBase, renameSection,
   type NoteSummary, type Role, type Section,
 } from '../lib/api'
 import { sectionSegments, summarySegments } from '../lib/audioSources'
@@ -133,6 +133,18 @@ export default function NotebookPage() {
     next[index + dir] = { ...a, position: pb }
     setSections(next)
     await moveSection({ ...a, position: pa }, { ...b, position: pb }).catch(fail)
+  }
+
+  async function removeNote(n: NoteSummary) {
+    if (!window.confirm(`¿Borrar el apunte «${n.title || 'Sin título'}»? No se puede deshacer.`)) return
+    try {
+      if (n.id === noteId) navigate(`${base}/${sectionId}`)
+      await removeNoteFiles({ ownerId, notebook: notebook!.slug, noteId: n.id }).catch(() => {})
+      await deleteNote(n.id)
+      setNotes((list) => list.filter((x) => x.id !== n.id))
+    } catch (e) {
+      fail(e as Error)
+    }
   }
 
   async function removeSection(s: Section) {
@@ -331,7 +343,7 @@ export default function NotebookPage() {
                       <Link
                         key={n.id}
                         to={`${base}/${s.id}/${n.id}`}
-                        className={`flex items-start gap-2 rounded-md px-2 py-1.5 text-sm ${
+                        className={`group/note flex items-start gap-2 rounded-md px-2 py-1.5 text-sm ${
                           n.id === noteId
                             ? 'bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700'
                             : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900'
@@ -349,6 +361,22 @@ export default function NotebookPage() {
                             {n.tags?.slice(0, 2).map((t) => <TagChip key={t} tag={t} color={tagColor(t)} />)}
                           </span>
                         </span>
+                        {canWrite && (
+                          <button
+                            title="Borrar apunte"
+                            aria-label={`Borrar apunte ${n.title || 'Sin título'}`}
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              void removeNote(n)
+                            }}
+                            className={`shrink-0 rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950 ${
+                              n.id === noteId ? 'block' : 'block md:hidden md:group-hover/note:block'
+                            }`}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </Link>
                     ))}
                     {canWrite && <NewNoteMenu notebook={notebook} onCreate={addNote} />}
